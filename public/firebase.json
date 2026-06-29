@@ -1,0 +1,7 @@
+{
+  "hosting": {
+    "site": "bvnd1-suat-an-noi-vien",
+    "public": ".",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+  }
+}

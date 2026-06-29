@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hệ thống đăng ký suất ăn — Dịch vụ · Bệnh lý · Gửi dinh dưỡng</title>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+<!-- Supabase — cấu hình + lớp kết nối GỘP THẲNG vào file để tránh lệch cache -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anonKey: "sb_publishable_z4W6NoLBqDapelJ8C7Ov_g_u0SZlxwm" };
+(function () {
+  "use strict";
+  var CONFIG = window.SUPABASE_CONFIG || {};
+  var URL = CONFIG.url, KEY = CONFIG.anonKey, TABLE = "dang_ky_suat", client = null;
+  function configured() { return !!(URL && KEY && URL.indexOf("http") === 0 && URL.indexOf("DAN_") < 0 && KEY.indexOf("DAN_") < 0); }
+  function getClient() {
+    if (client) return client;
+    if (!configured()) return null;
+    if (!window.supabase || !window.supabase.createClient) { console.error("[suat-db] Chưa nạp supabase-js"); return null; }
+    client = window.supabase.createClient(URL, KEY); return client;
+  }
+  window.SUAT_DB = {
+    configured: configured,
+    insert: function (rows) { var c = getClient(); if (!c) return Promise.resolve({ error: { message: "Chưa cấu hình Supabase" } }); return c.from(TABLE).insert(rows); },
+    fetchChoXuLy: function () { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); return c.from(TABLE).select("*").eq("trang_thai", "khoa_gui").order("created_at", { ascending: true }); },
+    updateTrangThai: function (ids, trangThai, lyDo) { var c = getClient(); if (!c || !ids || !ids.length) return Promise.resolve({ error: null }); var patch = { trang_thai: trangThai }; if (lyDo != null) patch.ly_do_tu_choi = lyDo; return c.from(TABLE).update(patch).in("id", ids); },
+    fetchBenhNhan: function (loai) { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); var q = c.from("benh_nhan").select("*"); if (loai) q = q.eq("loai_bn", loai); return q.order("ma_bn", { ascending: true }); },
+    updateBenhNhan: function (maBn, loai, patch) { var c = getClient(); if (!c || !maBn) return Promise.resolve({ error: null }); var q = c.from("benh_nhan").update(patch).eq("ma_bn", maBn); if (loai) q = q.eq("loai_bn", loai); return q; }
+  };
+})();
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #F0F4F8; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+
+// ═══════════════════════════════════════════════════════════
+// SHARED COLORS
+// ═══════════════════════════════════════════════════════════
+const C = {
+  bg: "#F0F4F8", white: "#FFFFFF", border: "#DDE3EA", borderLight: "#EEF2F5",
+  header: "#0D1F2D", primary: "#0E6BA8", primaryLight: "#E6F2FA", primaryMid: "#C2DCF0",
+  green: "#0E8A5F", greenLight: "#E8F5EE",
+  orange: "#E8650A", orangeLight: "#FFF0E6",
+  red: "#C0392B", redLight: "#FDECEA",
+  yellow: "#9A7200", yellowLight: "#FFFBEA",
+  gray: "#546E7A", grayLight: "#EEF2F4", grayMid: "#8A9BB0",
+  text: "#0D1F2D", textMid: "#4A5568", textLight: "#8A9BB0",
+  // bệnh lý extras
+  dimBg: "#EAECEE", dimTx: "#C0C8D0",
+  edit: "#D35400", editBg: "#FEF9E7",
+  divider: "#E2E8EF",
+};
+
+// ═══════════════════════════════════════════════════════════
+// SHARED UTILITIES
+// ═══════════════════════════════════════════════════════════
+function tinhNhomTuoi(ngaySinh) {
+  if (!ngaySinh) return 5;
+  const now = new Date(), ns = new Date(ngaySinh);
+  const months = (now.getFullYear() - ns.getFullYear()) * 12
+    + (now.getMonth() - ns.getMonth())
+    - (now.getDate() < ns.getDate() ? 1 : 0);
+  if (months < 6) return 1;
+  if (months < 12) return 2;
+  if (months < 36) return 3;
+  if (months < 72) return 4;
+  return 5;
+}
+function tenNhom(n) {
+  return ["","Dưới 6 tháng","6–12 tháng","1–3 tuổi","4–6 tuổi","7–15 tuổi"][n] || "";
+}
+function deXuatMac(nhom) { return nhom === 2 ? "Cháo" : "Cơm"; }
+function taoMa(nhom, loai) {
+  return `${nhom}BT·${loai === "Cháo" ? "ChPDV" : "CPDV"}`;
+}
+function formatCountdown(ms) {
+  if (ms <= 0) return "Đã hết hạn";
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}g ${m}p còn lại`;
+  if (m > 0) return `${m}p ${s}s còn lại`;
+  return `${s}s còn lại`;
+}
+
+// ── Responsive: phát hiện desktop / mobile ──
+function useIsDesktop() {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
+  useEffect(() => {
+    const f = () => setW(window.innerWidth);
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  return w >= 768;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ══  TAB 1: DỊCH VỤ  ══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+const DOT_CONFIG = [
+  { id: "trua",  label: "Trưa",       deadline: "09:00 sáng nay",  deadlineHour: 9,  deadlineOffset: 0 },
+  { id: "chieu", label: "Chiều",      deadline: "15:00 chiều nay", deadlineHour: 15, deadlineOffset: 0 },
+  { id: "sang",  label: "Sáng",       deadline: "15:00 hôm trước", deadlineHour: 15, deadlineOffset: 0 },
+];
+function getDeadlineDate(cfg) {
+  const d = new Date();
+  d.setDate(d.getDate() + cfg.deadlineOffset);
+  d.setHours(cfg.deadlineHour, 0, 0, 0);
+  return d;
+}
+
+const BN_MOI_INIT = [
+  { id: "BN007", ten: "Lê Bảo Hân",    ngaySinh: "2015-06-15", khoa: "Nhi Tổng hợp", phong: "302", giuong: "2", ghiChu: "", tramNguon: null, status: "cho_xac_nhan" },
+  { id: "BN008", ten: "Phạm Gia Minh", ngaySinh: "2025-10-20", khoa: "Sơ sinh",      phong: "215", giuong: "1", ghiChu: "", tramNguon: null, status: "cho_xac_nhan" },
+  { id: "BN009", ten: "Ngô Thanh Cúc", ngaySinh: "2021-03-10", khoa: "Nhi Tổng hợp", phong: "410", giuong: "3", ghiChu: "", tramNguon: null, status: "cho_xac_nhan" },
+];
+const BN_CU_INIT = [
+  { id: "BN001", ten: "Trần Minh Khôi", ngaySinh: "2014-04-12", khoa: "Ngoại Nhi",     phong: "105", giuong: "2", chinhSua: { sang:"Cơm",  trua:"Cơm",  chieu:"Cơm"  }, chinhSua_chao: {}, ghiChu: "Dị ứng hải sản", tramNguon: null, status: "da_xac_nhan" },
+  { id: "BN002", ten: "Nguyễn Bảo Ngọc",ngaySinh: "2024-11-08", khoa: "Tiêu hoá Nhi",  phong: "201", giuong: "4", chinhSua: { sang:"Cháo", trua:"Cơm",  chieu:"Cơm"  }, chinhSua_chao: { sang:{ nem:"Nêm", xay:"Không xay" } }, ghiChu: "", tramNguon: { tuCu:"Chiều", tuNgay:"28/06", denCu:"Sáng", denNgay:"29/06", lyDo:"Phẫu thuật" }, status: "tam_nguon" },
+  { id: "BN003", ten: "Hoàng Gia Long", ngaySinh: "2013-07-22", khoa: "Chấn thương Nhi",phong: "308", giuong: "1", chinhSua: { sang:"Cơm",  trua:"Cháo", chieu:"Cơm"  }, chinhSua_chao: { trua:{ nem:"Không nêm", xay:"Không xay" } }, ghiChu: "", tramNguon: null, xuatVien: { gio:"11:30 hôm nay", phucVu:["sang","trua"] }, status: "da_xac_nhan" },
+  { id: "BN004", ten: "Vũ Khánh An",    ngaySinh: "2025-09-14", khoa: "Sơ sinh",       phong: "501", giuong: "2", chinhSua: { sang:"Cháo", trua:"Cháo", chieu:"Cháo" }, chinhSua_chao: { sang:{ nem:"Không nêm", xay:"Xay" }, trua:{ nem:"Không nêm", xay:"Xay" }, chieu:{ nem:"Không nêm", xay:"Xay" } }, ghiChu: "Hay nôn trớ", tramNguon: null, status: "da_xac_nhan" },
+  { id: "BN005", ten: "Đặng Khánh Vy",  ngaySinh: "2016-02-20", khoa: "Nhi Tổng hợp",   phong: "203", giuong: "1", chinhSua: { sang:"Cơm",  trua:"Cơm",  chieu:"Cơm"  }, chinhSua_chao: {}, ghiChu: "", tramNguon: null, status: "bi_tra_ve", traVe: { lyDo:"Sai mã chế độ ăn — nhóm tuổi không khớp", gio:"08:20" } },
+];
+const BUAS = ["sang","trua","chieu"];
+const BUA_LABEL = { sang:"Sáng", trua:"Trưa", chieu:"Chiều" };
+
+function StatusBadge({ bn }) {
+  if (bn.xuatVien) return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99, background:"#E0F7F4", color:"#0E7C66" }}>🚪 Chờ xuất viện</span>;
+  if (bn.tramNguon) return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99, background:C.yellowLight, color:C.yellow }}>⏸ Ngưng đến {bn.tramNguon.denCu} {bn.tramNguon.denNgay}</span>;
+  if (bn.status === "bi_tra_ve") return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99, background:C.redLight, color:C.red }}>↩️ KDD trả về</span>;
+  if (bn.status === "cho_xac_nhan") return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99, background:C.orangeLight, color:C.orange }}>Chờ xác nhận</span>;
+  return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99, background:C.greenLight, color:C.green }}>✓ Đã xác nhận</span>;
+}
+function MaTag({ ma }) {
+  return <span style={{ fontSize:10, fontWeight:700, fontFamily:"monospace", background:C.primaryLight, color:C.primary, padding:"1px 6px", borderRadius:4 }}>{ma}</span>;
+}
+function BuaCell({ loai, chao, nhom }) {
+  const isChao = loai === "Cháo";
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+      <span style={{ fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:6, background:isChao?C.primaryLight:C.grayLight, color:isChao?C.primary:C.gray, display:"inline-block" }}>{loai}</span>
+      <MaTag ma={taoMa(nhom, loai)} />
+      {isChao && chao && <span style={{ fontSize:10, color:C.textLight }}>{chao.xay} · {chao.nem}</span>}
+    </div>
+  );
+}
+
+function DVCountdown({ cfg, daDong }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    if (daDong) return;
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, [daDong]);
+  const dl = getDeadlineDate(cfg);
+  const ms = dl - now;
+  const expired = ms <= 0;
+  const urgent = ms > 0 && ms < 30 * 60 * 1000;
+  if (daDong) return <span style={{ fontSize:11, color:C.green, fontWeight:700 }}>✓ Đã gửi</span>;
+  return <span style={{ fontSize:11, fontWeight:700, color: expired ? C.red : urgent ? C.orange : C.textMid }}>{expired ? "⛔ Hết hạn" : (urgent ? "⚠️ " : "⏱ ") + formatCountdown(ms)}</span>;
+}
+
+function DotGuiPanel({ cfg, bnDaXacNhan, daDong, onGui }) {
+  const [confirm, setConfirm] = useState(false);
+  const expired = new Date() > getDeadlineDate(cfg);
+  const soSuat = bnDaXacNhan.filter(b => b.status === "da_xac_nhan").length;
+  const bgColor = daDong ? C.greenLight : expired ? C.redLight : C.white;
+  const borderColor = daDong ? C.green : expired ? C.red : C.border;
+  return (
+    <div style={{ background:bgColor, border:`1.5px solid ${borderColor}`, borderRadius:14, padding:"12px 14px", marginBottom:8 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+        <div>
+          <span style={{ fontSize:13, fontWeight:800, color:C.text }}>Cữ {cfg.label}</span>
+          <span style={{ fontSize:11, color:C.textLight, marginLeft:8 }}>Deadline {cfg.deadline}</span>
+        </div>
+        <DVCountdown cfg={cfg} daDong={daDong} />
+      </div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <span style={{ fontSize:12, color:C.textMid }}>
+          {daDong ? `Đã gửi ${soSuat} suất cho khoa dinh dưỡng`
+            : soSuat > 0 ? `${soSuat} BN đã xác nhận sẵn sàng gửi`
+            : <span style={{ color:C.orange }}>Chưa có BN nào xác nhận</span>}
+        </span>
+        {!daDong && !expired && soSuat > 0 && !confirm && (
+          <button onClick={() => setConfirm(true)} style={{ fontSize:12, fontWeight:700, padding:"6px 14px", borderRadius:8, border:"none", background:C.primary, color:C.white, cursor:"pointer" }}>Gửi →</button>
+        )}
+        {!daDong && expired && soSuat > 0 && !confirm && (
+          <button onClick={() => setConfirm(true)} style={{ fontSize:11, fontWeight:700, padding:"5px 10px", borderRadius:8, border:`1.5px solid ${C.red}`, background:C.redLight, color:C.red, cursor:"pointer" }}>Gửi muộn</button>
+        )}
+      </div>
+      {confirm && (
+        <div style={{ marginTop:10, padding:"10px 12px", background:C.white, borderRadius:10, border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:12, color:C.text, marginBottom:8 }}>Xác nhận gửi <strong>{soSuat} suất ăn cữ {cfg.label}</strong> cho Khoa Dinh dưỡng?</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={() => setConfirm(false)} style={{ flex:1, padding:"7px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textMid, fontSize:12, fontWeight:600, cursor:"pointer" }}>Huỷ</button>
+            <button onClick={() => { setConfirm(false); onGui(cfg.id); }} style={{ flex:2, padding:"7px", borderRadius:8, border:"none", background:C.primary, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>✓ Xác nhận gửi</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DV_HISTORY = [
+  { date:"2026-06-26", tag:"Đã gửi", items:[
+    { bua:"Sáng",  loai:"Cháo", chitiet:"Xay · Nêm", ma:"2BT·ChPDV" },
+    { bua:"Trưa",  loai:"Cơm",  ma:"5BT·CPDV" },
+    { bua:"Chiều", loai:"Cơm",  ma:"5BT·CPDV" },
+  ]},
+  { date:"2026-06-25", tag:"Đã gửi", items:[
+    { bua:"Sáng",  loai:"Cháo", chitiet:"Không xay · Nêm", ma:"2BT·ChPDV" },
+    { bua:"Trưa",  loai:"Cháo", chitiet:"Không xay · Nêm", ma:"5BT·ChPDV" },
+    { bua:"Chiều", loai:"Cơm",  ma:"5BT·CPDV" },
+  ]},
+];
+
+function DVFormModal({ bn, onClose, onSave, onChuyenBenhLy }) {
+  const isDesktop = useIsDesktop();
+  const nhom = tinhNhomTuoi(bn.ngaySinh);
+  const isNhom2 = nhom === 2;
+  const initBua = (b) => bn.chinhSua?.[b] ?? deXuatMac(nhom);
+  const initChao = (b) => bn.chinhSua_chao?.[b] ?? { nem:"Nêm", xay:"Không xay" };
+  const [form, setForm] = useState({
+    sang: initBua("sang"), trua: initBua("trua"), chieu: initBua("chieu"),
+    chao_sang: initChao("sang"), chao_trua: initChao("trua"), chao_chieu: initChao("chieu"),
+    ghiChu: bn.ghiChu || "",
+  });
+  const [lyDoNhom2, setLyDoNhom2] = useState({ sang:"", trua:"", chieu:"" });
+  const [showTamNguon, setShowTamNguon] = useState(false);
+  const [tamNguon, setTamNguon] = useState({ tuNgay:"", tuCu:"Sáng", denNgay:"", denCu:"Sáng", lyDo:"" });
+  const [detailTab, setDetailTab] = useState("dang_ky");
+  const setBua = (bua, val) => setForm(f => ({ ...f, [bua]: val }));
+  const setChao = (bua, field, val) => setForm(f => ({ ...f, [`chao_${bua}`]: { ...f[`chao_${bua}`], [field]: val } }));
+  const handleChangeBua = (bua, val) => { setBua(bua, val); if (isNhom2 && val === "Cháo") setLyDoNhom2(l => ({ ...l, [bua]:"" })); };
+  const canSave = () => { if (!isNhom2) return true; return BUAS.every(b => form[b] === "Cháo" || lyDoNhom2[b]); };
+
+  const BuaSection = ({ bua }) => {
+    const val = form[bua];
+    const ma = taoMa(nhom, val);
+    const canhanLyDo = isNhom2 && val !== "Cháo";
+    const cfg = DOT_CONFIG.find(d => d.id === bua);
+    return (
+      <div style={{ padding:"12px 0", borderBottom:`1px solid ${C.borderLight}` }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:C.textMid }}>{BUA_LABEL[bua]}</span>
+            <span style={{ fontSize:10, color:C.textLight }}>Deadline {cfg.deadline}</span>
+            <MaTag ma={ma} />
+          </div>
+          <select value={val} onChange={e => handleChangeBua(bua, e.target.value)} style={{ fontSize:13, fontWeight:600, border:`1.5px solid ${canhanLyDo?C.orange:C.border}`, borderRadius:8, padding:"4px 10px", background:C.white, color:C.text, cursor:"pointer" }}>
+            <option>Cơm</option><option>Cháo</option>
+          </select>
+        </div>
+        {canhanLyDo && (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ fontSize:11, color:C.orange, fontWeight:600, marginBottom:4 }}>⚠️ Đổi sang Cơm — cần lý do</div>
+            <input value={lyDoNhom2[bua]} onChange={e => setLyDoNhom2(l => ({ ...l, [bua]:e.target.value }))} placeholder="Nhập lý do…" style={{ width:"100%", padding:"7px 10px", borderRadius:8, boxSizing:"border-box", border:`1.5px solid ${lyDoNhom2[bua]?C.border:C.orange}`, fontSize:12, background:C.white, color:C.text }} />
+          </div>
+        )}
+        {val === "Cháo" && (
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[{ field:"nem", opts:["Nêm","Không nêm"] }, { field:"xay", opts:["Xay","Không xay"] }].map(({ field, opts }) => (
+              <div key={field} style={{ display:"flex", gap:4 }}>
+                {opts.map(o => {
+                  const active = form[`chao_${bua}`][field] === o;
+                  return <button key={o} onClick={() => setChao(bua, field, o)} style={{ fontSize:11, padding:"3px 9px", borderRadius:6, cursor:"pointer", border:`1.5px solid ${active?C.primary:C.border}`, background:active?C.primaryLight:C.white, color:active?C.primary:C.textMid, fontWeight:active?700:400 }}>{o}</button>;
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000066", zIndex:100, display:"flex", alignItems:isDesktop?"center":"flex-end", justifyContent:"center", padding:isDesktop?16:0 }}>
+      <div style={{ background:C.white, borderRadius:isDesktop?16:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"90vh", overflow:"auto" }}>
+        <div style={{ padding:"16px 20px 0", position:"sticky", top:0, background:C.white, zIndex:10 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4 }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color:C.text }}>{bn.ten}</div>
+              <div style={{ fontSize:12, color:C.textLight }}>
+                <span style={{ fontWeight:700, color:C.textMid }}>{bn.id}</span> · Phòng {bn.phong} · Giường {bn.giuong} · {new Date(bn.ngaySinh).toLocaleDateString("vi-VN")}
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background:C.grayLight, border:"none", borderRadius:"50%", width:32, height:32, fontSize:16, cursor:"pointer", color:C.textMid }}>×</button>
+          </div>
+          <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
+            <span style={{ background:C.primaryLight, color:C.primary, borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:700 }}>🍽 Bình thường</span>
+            <span style={{ background:C.grayLight, color:C.gray, borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:600 }}>Nhóm {nhom} — {tenNhom(nhom)}</span>
+            {isNhom2 && <span style={{ background:C.orangeLight, color:C.orange, borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:600 }}>⚠️ Đổi Cơm cần lý do</span>}
+            {bn.xuatVien && <span style={{ background:"#E0F7F4", color:"#0E7C66", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:700 }}>🚪 Chờ xuất viện ({bn.xuatVien.gio}) — cữ sáng đã dùng, đã hủy cữ chiều</span>}
+          </div>
+          {bn.traVe && <div style={{ background:C.redLight, color:C.red, borderRadius:8, padding:"8px 10px", fontSize:12, fontWeight:600, marginBottom:10 }}>↩️ KDD trả về{bn.traVe.gio?` (${bn.traVe.gio})`:""}: {bn.traVe.lyDo}. Sửa chế độ ăn rồi bấm Xác nhận để gửi lại.</div>}
+          <div style={{ display:"flex", gap:6 }}>
+            {[{id:"dang_ky",label:"📋 Đăng ký"},{id:"lich_su",label:"🕐 Lịch sử"}].map(t=>(
+              <button key={t.id} onClick={()=>setDetailTab(t.id)} style={{ flex:1, padding:"9px 0", border:"none", cursor:"pointer", fontSize:13, fontWeight:detailTab===t.id?700:500, background:"transparent", color:detailTab===t.id?C.primary:C.textLight, borderBottom:detailTab===t.id?`2.5px solid ${C.primary}`:`2.5px solid ${C.borderLight}` }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding:"0 20px 20px" }}>
+          {detailTab === "lich_su" && (
+            <div style={{ paddingTop:14 }}>
+              {DV_HISTORY.map((day, di) => (
+                <div key={di} style={{ marginBottom:16 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{day.date}</span>
+                    {day.tag && <span style={{ fontSize:10, fontWeight:700, background:C.greenLight, color:C.green, borderRadius:4, padding:"1px 6px" }}>{day.tag}</span>}
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {day.items.map((it, ii) => (
+                      <div key={ii} style={{ border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 10px", minWidth:96, background:C.grayLight, fontSize:12 }}>
+                        <div style={{ fontWeight:700, color:C.primary, marginBottom:3 }}>{it.bua}</div>
+                        <div style={{ color:C.text, marginBottom:2 }}>{it.loai}</div>
+                        {it.chitiet && <div style={{ color:C.textMid, fontSize:11 }}>{it.chitiet}</div>}
+                        {it.ma && <div style={{ color:C.textMid, fontSize:10, fontFamily:"monospace" }}>{it.ma}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {di < DV_HISTORY.length-1 && <div style={{ height:1, background:C.borderLight, marginTop:14 }} />}
+                </div>
+              ))}
+            </div>
+          )}
+          {detailTab === "dang_ky" && (<>
+          <BuaSection bua="sang" /><BuaSection bua="trua" /><BuaSection bua="chieu" />
+          <div style={{ marginTop:14 }}>
+            <label style={{ fontSize:12, fontWeight:700, color:C.textMid, display:"block", marginBottom:6 }}>Ghi chú</label>
+            <textarea value={form.ghiChu} onChange={e => setForm(f => ({ ...f, ghiChu:e.target.value }))} placeholder="Dị ứng, yêu cầu đặc biệt…" style={{ width:"100%", borderRadius:10, border:`1.5px solid ${C.border}`, padding:"10px 12px", fontSize:13, resize:"none", height:64, color:C.text, background:C.bg, boxSizing:"border-box", fontFamily:"inherit" }} />
+          </div>
+          {!showTamNguon ? (
+            <button onClick={() => setShowTamNguon(true)} style={{ width:"100%", marginTop:12, padding:"10px", border:`1.5px dashed ${C.yellow}`, borderRadius:10, background:"transparent", color:C.yellow, fontSize:13, fontWeight:600, cursor:"pointer" }}>⏸ Ngưng có hạn</button>
+          ) : (
+            <div style={{ marginTop:12, padding:14, border:`1.5px solid ${C.yellow}`, borderRadius:12, background:C.yellowLight }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.yellow, marginBottom:10 }}>⏸ Ngưng có hạn</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                {[{ label:"Từ ngày", key:"tuNgay", type:"date" },{ label:"Đến ngày", key:"denNgay", type:"date" },{ label:"Cữ bắt đầu", key:"tuCu", type:"select" },{ label:"Cữ kết thúc", key:"denCu", type:"select" }].map(f => (
+                  <div key={f.key}>
+                    <label style={{ fontSize:11, color:C.textMid, fontWeight:600, display:"block", marginBottom:4 }}>{f.label} <span style={{ color:C.red }}>*</span></label>
+                    {f.type === "select"
+                      ? <select value={tamNguon[f.key]} onChange={e => setTamNguon(t => ({ ...t, [f.key]:e.target.value }))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:13, background:C.white, color:C.text }}><option>Sáng</option><option>Trưa</option><option>Chiều</option></select>
+                      : <input type="date" value={tamNguon[f.key]} onChange={e => setTamNguon(t => ({ ...t, [f.key]:e.target.value }))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:13, background:C.white, color:C.text, boxSizing:"border-box" }} />
+                    }
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop:8 }}>
+                <label style={{ fontSize:11, color:C.textMid, fontWeight:600, display:"block", marginBottom:4 }}>Lý do <span style={{ color:C.red }}>*</span></label>
+                <input value={tamNguon.lyDo} onChange={e => setTamNguon(t => ({ ...t, lyDo:e.target.value }))} placeholder="Nhập lý do ngưng…" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:13, background:C.white, color:C.text, boxSizing:"border-box" }} />
+              </div>
+              <button onClick={() => setShowTamNguon(false)} style={{ marginTop:8, fontSize:12, color:C.textLight, background:"none", border:"none", cursor:"pointer", padding:0 }}>Huỷ</button>
+            </div>
+          )}
+          <button onClick={onChuyenBenhLy} style={{ width:"100%", marginTop:10, padding:"10px", border:`1.5px solid ${C.orange}`, borderRadius:10, background:C.orangeLight, color:C.orange, fontSize:13, fontWeight:700, cursor:"pointer" }}>Chuyển sang suất ăn bệnh lý →</button>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:16 }}>
+            <button onClick={onClose} style={{ padding:"12px", borderRadius:12, border:`1.5px solid ${C.border}`, background:C.white, color:C.textMid, fontSize:14, fontWeight:700, cursor:"pointer" }}>Huỷ</button>
+            <button onClick={() => { if (canSave()) onSave(form, tamNguon); }} style={{ padding:"12px", borderRadius:12, border:"none", background:canSave()?C.primary:C.grayLight, color:canSave()?C.white:C.textLight, fontSize:14, fontWeight:700, cursor:canSave()?"pointer":"not-allowed" }}>Xác nhận</button>
+          </div>
+          {!canSave() && <div style={{ fontSize:11, color:C.orange, textAlign:"center", marginTop:6 }}>Vui lòng nhập lý do cho các bữa đã đổi sang Cơm</div>}
+          </>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DVBNCard({ bn, onPress, checked, onCheck, showCheck }) {
+  const nhom = tinhNhomTuoi(bn.ngaySinh);
+  const getLoai = (b) => bn.chinhSua?.[b] ?? deXuatMac(nhom);
+  const getChao = (b) => bn.chinhSua_chao?.[b] ?? null;
+  return (
+    <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${bn.status==="bi_tra_ve"?C.red:bn.status==="cho_xac_nhan"?C.orange+"55":C.border}`, padding:"12px 14px", cursor:"pointer", boxShadow:bn.status==="cho_xac_nhan"?`0 0 0 3px ${C.orange}18`:bn.status==="bi_tra_ve"?`0 0 0 3px ${C.red}14`:"none" }} onClick={onPress}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+        {showCheck && (
+          <div onClick={e => { e.stopPropagation(); onCheck(); }} style={{ width:20, height:20, borderRadius:6, marginTop:2, flexShrink:0, border:`2px solid ${checked?C.primary:C.border}`, background:checked?C.primary:C.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            {checked && <span style={{ color:C.white, fontSize:12, lineHeight:1 }}>✓</span>}
+          </div>
+        )}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:C.text }}>{bn.ten}</div>
+            <StatusBadge bn={bn} />
+          </div>
+          <div style={{ fontSize:11, color:C.textLight, marginBottom:8 }}>
+            <span style={{ fontWeight:700, color:C.textMid }}>{bn.id}</span>
+            <span style={{ margin:"0 5px" }}>·</span>P.{bn.phong} G.{bn.giuong}
+            <span style={{ margin:"0 5px" }}>·</span>{new Date(bn.ngaySinh).toLocaleDateString("vi-VN")}
+            <span style={{ marginLeft:6, background:C.grayLight, color:C.gray, borderRadius:4, padding:"1px 5px", fontSize:10, fontWeight:600 }}>Nhóm {nhom}</span>
+          </div>
+          <div style={{ display:"flex", gap:6 }}>
+            {BUAS.map(b => {
+              const huy = bn.xuatVien && !bn.xuatVien.phucVu.includes(b);
+              const daDung = bn.xuatVien && b === "sang";
+              return (
+              <div key={b} style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:10, color:C.textLight, marginBottom:3 }}>{BUA_LABEL[b]}</div>
+                {huy
+                  ? <div style={{ fontSize:11, color:C.textLight, fontStyle:"italic", textDecoration:"line-through", padding:"2px 0" }}>Hủy (XV)</div>
+                  : <><BuaCell loai={getLoai(b)} chao={getChao(b)} nhom={nhom} />{daDung && <div style={{ fontSize:10, color:C.green, marginTop:2 }}>✓ đã dùng</div>}</>}
+              </div>
+              );
+            })}
+          </div>
+          {bn.traVe && <div style={{ marginTop:8, fontSize:11, color:C.red, background:C.redLight, borderRadius:6, padding:"4px 8px" }}>↩️ KDD trả về{bn.traVe.gio?` (${bn.traVe.gio})`:""}: {bn.traVe.lyDo}</div>}
+          {bn.xuatVien && <div style={{ marginTop:8, fontSize:11, color:"#0E7C66", background:"#E0F7F4", borderRadius:6, padding:"4px 8px" }}>🚪 Xuất viện {bn.xuatVien.gio} — cữ sáng đã dùng, vẫn phục vụ cữ trưa, đã hủy cữ chiều · sau 13:00 tự xóa khỏi danh sách</div>}
+          {bn.ghiChu ? <div style={{ marginTop:8, fontSize:11, color:C.textMid, background:C.grayLight, borderRadius:6, padding:"4px 8px" }}>📝 {bn.ghiChu}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DichVuTab({ onChuyenBenhLy }) {
+  const isDesktop = useIsDesktop();
+  const [subTab, setSubTab] = useState("dich_vu");
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
+  const [checkedIds, setCheckedIds] = useState([]);
+  const [bnMoi, setBnMoi] = useState(BN_MOI_INIT);
+  const [bnCu, setBnCu] = useState(BN_CU_INIT);
+
+  // Đọc danh sách Dịch vụ từ Supabase (nếu đã cấu hình); lỗi → giữ mock
+  useEffect(() => {
+    if (!(window.SUAT_DB && window.SUAT_DB.configured() && window.SUAT_DB.fetchBenhNhan)) return;
+    window.SUAT_DB.fetchBenhNhan("DV").then(res => {
+      if (!(res && !res.error && Array.isArray(res.data) && res.data.length)) return;
+      const mapped = res.data.map(r => {
+        const cs = r.chinh_sua || {};
+        const o = {
+          id: r.ma_bn, ten: r.ho_ten, ngaySinh: r.ngay_sinh, khoa: r.khoa,
+          phong: r.phong, giuong: r.giuong, ghiChu: r.ghi_chu || "",
+          status: r.trang_thai,
+          chinhSua: cs.chinhSua || {}, chinhSua_chao: cs.chinhSua_chao || {},
+          tramNguon: cs.tramNguon || null
+        };
+        if (cs.xuatVien) o.xuatVien = cs.xuatVien;
+        if (cs.traVe) o.traVe = cs.traVe;
+        return o;
+      });
+      setBnMoi(mapped.filter(b => b.status === "cho_xac_nhan"));
+      setBnCu(mapped.filter(b => b.status !== "cho_xac_nhan"));
+    });
+  }, []);
+  const [toast, setToast] = useState(null);
+  const [daDong, setDaDong] = useState({ sang:false, trua:false, chieu:false });
+
+  const showToast = (msg, color = C.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  const allBn = [...bnMoi, ...bnCu];
+  const matchS = b => b.ten.toLowerCase().includes(search.toLowerCase()) || b.id.includes(search);
+  const filteredMoi = bnMoi.filter(matchS);
+  const filteredTraVe = bnCu.filter(b => b.status === "bi_tra_ve" && matchS(b));
+  const filteredCu  = bnCu.filter(b => b.status !== "bi_tra_ve" && matchS(b));
+  const toggleCheck = (id) => setCheckedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
+
+  const duyetHangLoat = () => {
+    const ids = checkedIds.length > 0 ? checkedIds : bnMoi.map(b => b.id);
+    const duyet = bnMoi.filter(b => ids.includes(b.id)).map(b => ({ ...b, status:"da_xac_nhan" }));
+    if (window.SUAT_DB && window.SUAT_DB.configured()) {
+      duyet.forEach(b => window.SUAT_DB.updateBenhNhan(b.id, "DV", { trang_thai:"da_xac_nhan" }));
+    }
+    setBnCu(prev => [...duyet, ...prev]);
+    setBnMoi(prev => prev.filter(b => !ids.includes(b.id)));
+    setCheckedIds([]);
+    showToast(`Đã xác nhận ${duyet.length} bệnh nhân`);
+  };
+
+  const handleSave = (form, tamNguon) => {
+    if (!selected) return;
+    const updated = { ...selected, chinhSua:{ sang:form.sang, trua:form.trua, chieu:form.chieu }, chinhSua_chao:{ sang:form.sang==="Cháo"?form.chao_sang:null, trua:form.trua==="Cháo"?form.chao_trua:null, chieu:form.chieu==="Cháo"?form.chao_chieu:null }, ghiChu:form.ghiChu, tramNguon:tamNguon?.lyDo?tamNguon:null, status:"da_xac_nhan" };
+    setBnMoi(prev => prev.filter(b => b.id !== selected.id));
+    setBnCu(prev => { const ex = prev.find(b => b.id === selected.id); return ex ? prev.map(b => b.id===selected.id?updated:b) : [updated,...prev]; });
+    // Ghi thay đổi món xuống DB (nếu đã cấu hình) — để F5 không bị mất
+    if (window.SUAT_DB && window.SUAT_DB.configured()) {
+      const cs = { chinhSua: updated.chinhSua, chinhSua_chao: updated.chinhSua_chao, tramNguon: updated.tramNguon };
+      if (updated.xuatVien) cs.xuatVien = updated.xuatVien;
+      if (updated.traVe) cs.traVe = updated.traVe;
+      window.SUAT_DB.updateBenhNhan(updated.id, "DV", { trang_thai: updated.status, ghi_chu: updated.ghiChu || "", chinh_sua: cs });
+    }
+    setSelected(null);
+    showToast("Đã lưu và xác nhận");
+  };
+
+  const handleChuyenBenhLyLocal = () => {
+    setBnMoi(prev => prev.filter(b => b.id !== selected.id));
+    setBnCu(prev => prev.filter(b => b.id !== selected.id));
+    setSelected(null);
+    showToast("Đã chuyển sang suất ăn bệnh lý", C.orange);
+    setTimeout(() => onChuyenBenhLy(), 600);
+  };
+
+  const BUA_CU = { sang:"06:00", trua:"11:00", chieu:"17:00" };
+  const handleGui = (bua) => {
+    setDaDong(d => ({ ...d, [bua]:true }));
+    const sanSang = allBn.filter(b=>b.status==="da_xac_nhan");
+    showToast(`Đã gửi ${sanSang.length} suất cữ ${BUA_LABEL[bua]} cho Dinh dưỡng`);
+    // ── Ghi thật lên Supabase (chỉ khi đã cấu hình) ──
+    if (window.SUAT_DB && window.SUAT_DB.configured()) {
+      try {
+        const rows = sanSang.map(b => {
+          const nhom = tinhNhomTuoi(b.ngaySinh);
+          const mon  = (b.chinhSua && b.chinhSua[bua]) || deXuatMac(nhom);
+          const chao = (b.chinhSua_chao && b.chinhSua_chao[bua]) || {};
+          return {
+            ma_bn: b.id, ho_ten: b.ten, khoa: b.khoa, phong: b.phong, giuong: b.giuong,
+            ngay_sinh: b.ngaySinh, nhom_tuoi: nhom,
+            cu: BUA_CU[bua], buoi: BUA_LABEL[bua],
+            loai_food: mon === "Cháo" ? "chao" : "com",
+            loai:      mon === "Cháo" ? "chao_dv" : "com_dv",
+            loai_suat: "DV", bo_phan: "bep_dv",
+            ma_che_do: taoMa(nhom, mon),
+            xay: chao.xay === "Xay", nem: chao.nem === "Nêm",
+            ghi_chu: b.ghiChu || "", trang_thai: "khoa_gui"
+          };
+        });
+        if (rows.length) {
+          window.SUAT_DB.insert(rows).then(res => {
+            if (res && res.error) showToast("Lỗi gửi Supabase: " + (res.error.message || res.error), C.red);
+            else showToast(`✓ Đã ghi ${rows.length} suất lên hệ thống`, C.green);
+          });
+        }
+      } catch (e) { showToast("Lỗi xử lý dữ liệu: " + e.message, C.red); }
+    }
+  };
+
+  const menuTuan = [
+    { thu:"Thứ 2", com:"Cơm sườn + canh chua", chao:"Cháo gà" },
+    { thu:"Thứ 3", com:"Cơm cá kho + rau muống", chao:"Cháo heo bằm" },
+    { thu:"Thứ 4", com:"Cơm thịt kho + canh bí", chao:"Cháo thịt bò" },
+    { thu:"Thứ 5", com:"Cơm gà luộc + canh rau", chao:"Cháo cá lóc" },
+    { thu:"Thứ 6", com:"Cơm tôm rang + đậu bắp", chao:"Cháo sườn non" },
+    { thu:"Thứ 7", com:"Cơm thịt heo quay", chao:"Cháo trứng" },
+    { thu:"CN",    com:"Cơm gà xào sả ớt", chao:"Cháo đậu xanh" },
+  ];
+
+  return (
+    <div style={{ padding:"16px" }}>
+      {toast && <div style={{ position:"fixed", top:60, left:"50%", transform:"translateX(-50%)", background:toast.color, color:C.white, padding:"10px 20px", borderRadius:12, fontSize:14, fontWeight:700, zIndex:999, boxShadow:"0 4px 16px #0003", whiteSpace:"nowrap" }}>{toast.msg}</div>}
+
+      {/* Sub-tabs dịch vụ */}
+      <div style={{ display:"flex", marginBottom:16, background:C.white, borderRadius:10, padding:4, gap:4 }}>
+        {[{ id:"dich_vu", label:"Danh sách" },{ id:"menu", label:"Thực đơn & Mã" }].map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{ flex:1, padding:"8px 4px", border:"none", cursor:"pointer", borderRadius:8, fontSize:12, fontWeight:subTab===t.id?700:400, color:subTab===t.id?C.white:C.textMid, background:subTab===t.id?C.primary:"transparent" }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Tab: Danh sách */}
+      {subTab === "dich_vu" && (
+        <>
+          <div style={{ position:"relative", marginBottom:12 }}>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:C.textLight }}>🔍</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm bệnh nhân…" style={{ width:"100%", padding:"10px 12px 10px 34px", borderRadius:10, border:`1.5px solid ${C.border}`, fontSize:13, background:C.white, color:C.text, boxSizing:"border-box" }} />
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+            <div style={{ background:C.white, borderRadius:12, padding:"10px 14px", border:`1px solid ${C.border}` }}>
+              <div style={{ fontSize:22, fontWeight:800, color:C.primary }}>{bnMoi.length+bnCu.length}</div>
+              <div style={{ fontSize:11, color:C.textLight }}>Tổng bệnh nhân</div>
+            </div>
+            <div style={{ borderRadius:12, padding:"10px 14px", background:bnMoi.length>0?C.orangeLight:C.grayLight, border:`1px solid ${bnMoi.length>0?C.orange+"44":C.border}` }}>
+              <div style={{ fontSize:22, fontWeight:800, color:bnMoi.length>0?C.orange:C.textLight }}>{bnMoi.length}</div>
+              <div style={{ fontSize:11, color:bnMoi.length>0?C.orange:C.textLight }}>Chờ xác nhận</div>
+            </div>
+          </div>
+          {filteredTraVe.length > 0 && (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:C.red }}>↩️ BỊ KDD TRẢ VỀ</span>
+                <span style={{ background:C.red, color:C.white, fontSize:10, fontWeight:800, borderRadius:99, padding:"1px 7px" }}>{filteredTraVe.length}</span>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:isDesktop?"1fr 1fr":"1fr", gap:8 }}>
+                {filteredTraVe.map(bn => <DVBNCard key={bn.id} bn={bn} onPress={() => setSelected(bn)} checked={false} onCheck={() => {}} showCheck={false} />)}
+              </div>
+            </div>
+          )}
+          {filteredMoi.length > 0 && (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:C.orange }}>MỚI — CHƯA XÁC NHẬN</span>
+                  <span style={{ background:C.orange, color:C.white, fontSize:10, fontWeight:800, borderRadius:99, padding:"1px 7px" }}>{filteredMoi.length}</span>
+                </div>
+                <button onClick={duyetHangLoat} style={{ fontSize:12, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"none", background:checkedIds.length>0?C.primary:C.primaryLight, color:checkedIds.length>0?C.white:C.primary, cursor:"pointer" }}>
+                  {checkedIds.length > 0 ? `Duyệt ${checkedIds.length}` : "Duyệt tất cả"}
+                </button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:isDesktop?"1fr 1fr":"1fr", gap:8 }}>
+                {filteredMoi.map(bn => <DVBNCard key={bn.id} bn={bn} onPress={() => setSelected(bn)} checked={checkedIds.includes(bn.id)} onCheck={() => toggleCheck(bn.id)} showCheck={true} />)}
+              </div>
+            </div>
+          )}
+          {filteredCu.length > 0 && (
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:C.textLight, marginBottom:8 }}>ĐÃ XÁC NHẬN — {filteredCu.length} bệnh nhân</div>
+              <div style={{ display:"grid", gridTemplateColumns:isDesktop?"1fr 1fr":"1fr", gap:8 }}>
+                {filteredCu.map(bn => <DVBNCard key={bn.id} bn={bn} onPress={() => setSelected(bn)} checked={false} onCheck={() => {}} showCheck={false} />)}
+              </div>
+            </div>
+          )}
+          {filteredMoi.length===0 && filteredCu.length===0 && <div style={{ textAlign:"center", padding:"40px 0", color:C.textLight }}>Không tìm thấy bệnh nhân</div>}
+        </>
+      )}
+
+      {/* Tab: Thực đơn & Mã */}
+      {subTab === "menu" && (
+        <>
+          <div style={{ fontSize:13, fontWeight:700, color:C.textMid, marginBottom:10 }}>THỰC ĐƠN TUẦN NÀY</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
+            {menuTuan.map(m => (
+              <div key={m.thu} style={{ background:C.white, borderRadius:12, padding:"12px 14px", border:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:12, fontWeight:800, color:C.primary, marginBottom:6 }}>{m.thu}</div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <div style={{ flex:1, background:C.grayLight, borderRadius:8, padding:"6px 10px" }}><div style={{ fontSize:10, color:C.textLight, marginBottom:2 }}>🍚 Cơm</div><div style={{ fontSize:12, color:C.text }}>{m.com}</div></div>
+                  <div style={{ flex:1, background:C.primaryLight, borderRadius:8, padding:"6px 10px" }}><div style={{ fontSize:10, color:C.primary, marginBottom:2 }}>🥣 Cháo</div><div style={{ fontSize:12, color:C.text }}>{m.chao}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.textMid, marginBottom:10 }}>BỘ MÃ CHẾ ĐỘ ĂN</div>
+          <div style={{ background:C.white, borderRadius:12, padding:"12px 14px", border:`1px solid ${C.border}`, marginBottom:8 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:C.textLight, marginBottom:10 }}>CẤU TRÚC MÃ DỊCH VỤ</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {[1,2,3,4,5].map(n => (
+                <div key={n} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:11, color:C.textMid, width:110 }}>Nhóm {n} — {tenNhom(n)}</span>
+                  <MaTag ma={`${n}BT·CPDV`} /><MaTag ma={`${n}BT·ChPDV`} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize:11, color:C.textLight, textAlign:"center", marginTop:8 }}>Chỉ xem — do bộ phận dinh dưỡng quản lý</div>
+        </>
+      )}
+
+      {selected && <DVFormModal bn={selected} onClose={() => setSelected(null)} onSave={handleSave} onChuyenBenhLy={handleChuyenBenhLyLocal} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ══  TAB 2: BỆNH LÝ  ══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+const BL_AGE_GROUPS = [
+  { prefix:"1", label:"< 6 tháng",  min:0,   max:6   },
+  { prefix:"2", label:"6–12 tháng", min:6,   max:12  },
+  { prefix:"3", label:"1–3 tuổi",   min:12,  max:36  },
+  { prefix:"4", label:"4–6 tuổi",   min:36,  max:72  },
+  { prefix:"5", label:"7–15 tuổi",  min:72,  max:180 },
+];
+const DISEASE_GROUPS = [
+  {code:"BT",name:"Bình thường"},{code:"TH",name:"Tiêu hoá"},{code:"GM",name:"Gan mật"},
+  {code:"TN",name:"Thận niệu"},{code:"SD",name:"Suy dinh dưỡng"},{code:"DD",name:"Đái tháo đường"},
+  {code:"NK",name:"Nhiễm khuẩn"},{code:"TM",name:"Tim mạch"},
+];
+const CU_TIMES = {
+  sua_thuong:  ["03:00","06:00","09:00","12:00","15:00","18:00","21:00","00:00"],
+  sua_dac_tri: ["03:00","06:00","09:00","12:00","15:00","18:00","21:00","00:00"],
+  sonde:       ["06:00","11:00","16:00","21:00"],
+  chao:        ["06:00","11:00","17:00"],
+  com:         ["06:00","11:00","17:00"],
+};
+const SUA_THUONG_CODES = ["SUA006","SUA007","SUA009","SUA011","SUA013","SUA014"];
+const SUA_DAC_TRI_CODES = {
+  BT:["SUA022"],TH:["SUA023"],GM:["SUA021"],TN:["SUA020","SUA024"],
+  SD:["SUA010","SUA015"],DD:["SUA019","SUA025"],NK:["SUA022"],TM:["SUA022"],
+};
+const SONDE_CODES = ["BN-SS04","BN-SS05","BN-SS06"];
+const BL_COMBOS = [
+  ["sua_thuong","com"],["sua_thuong","chao"],["sua_thuong","sonde"],
+  ["sua_dac_tri","com"],["sua_dac_tri","chao"],["sua_dac_tri","sonde"],
+  ["sua_thuong","sua_dac_tri"],["chao","com"],
+];
+const ALL_CU_TIMES = ["03:00","06:00","09:00","11:00","12:00","15:00","16:00","17:00","18:00","21:00","00:00"];
+
+function isComboAllowed(a, b) { return BL_COMBOS.some(c => (c[0]===a&&c[1]===b)||(c[1]===a&&c[0]===b)); }
+function calcAgeGroup(dob) {
+  if (!dob) return null;
+  const now = new Date(), bd = new Date(dob);
+  let m = (now.getFullYear()-bd.getFullYear())*12 + (now.getMonth()-bd.getMonth());
+  if (now.getDate() < bd.getDate()) m--;
+  return BL_AGE_GROUPS.find(g => m>=g.min && m<g.max) || null;
+}
+
+const blInp = (x={}) => ({ padding:"5px 8px", borderRadius:6, border:"1.5px solid "+C.border, background:C.white, color:C.text, outline:"none", fontSize:12, ...x });
+const blSelSt = { ...blInp(), cursor:"pointer" };
+
+function BLChip({ children, bg, color }) {
+  return <span style={{ background:bg||C.primaryLight, color:color||C.primary, borderRadius:4, padding:"2px 7px", fontSize:11, fontWeight:700 }}>{children}</span>;
+}
+
+function BLEditNum({ value, onChange, w=56 }) {
+  return <input type="number" min="0" value={value} onChange={e=>onChange(e.target.value)} placeholder="0" style={blInp({ width:w, textAlign:"center" })} />;
+}
+
+function NgungModal({ onClose }) {
+  const [step, setStep] = useState("choose");
+  const [loai, setLoai] = useState("");
+  const [tuNgay, setTuNgay] = useState(""); const [tuCu, setTuCu] = useState("");
+  const [denNgay, setDenNgay] = useState(""); const [denCu, setDenCu] = useState("");
+  const [lydo, setLydo] = useState("");
+  const today = new Date().toISOString().slice(0,10);
+  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 };
+  const box = { background:C.white, borderRadius:12, width:"100%", maxWidth:420, boxShadow:"0 8px 32px rgba(0,0,0,0.2)", overflow:"hidden" };
+  const fld = { width:"100%", padding:"8px 10px", borderRadius:7, border:"1.5px solid "+C.border, fontSize:13, outline:"none", boxSizing:"border-box" };
+  function Hdr({ title }) {
+    return <div style={{background:C.primary,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}><span style={{color:"#fff",fontWeight:700,fontSize:14}}>{title}</span><button onClick={onClose} style={{background:"none",border:"none",color:"rgba(255,255,255,0.8)",fontSize:22,cursor:"pointer",lineHeight:1}}>×</button></div>;
+  }
+  if (step==="choose") return (<div style={overlay}><div style={box}><Hdr title="Ngưng suất ăn" /><div style={{padding:16,display:"flex",flexDirection:"column",gap:10}}><p style={{fontSize:13,color:C.textMid,margin:0}}>Chọn hình thức ngưng:</p><button onClick={()=>{setLoai("tam");setStep("tamNgung");}} style={{padding:"14px 16px",borderRadius:9,border:"1.5px solid "+C.edit,background:"#FEF5EC",cursor:"pointer",textAlign:"left"}}><div style={{fontWeight:700,fontSize:14,color:C.edit,marginBottom:3}}>⏸ Tạm ngưng</div><div style={{fontSize:12,color:C.textMid}}>Ngưng trong khoảng thời gian, sau đó tiếp tục</div></button><button onClick={()=>{setLoai("han");setStep("ngungHan");}} style={{padding:"14px 16px",borderRadius:9,border:"1.5px solid "+C.red,background:C.redLight,cursor:"pointer",textAlign:"left"}}><div style={{fontWeight:700,fontSize:14,color:C.red,marginBottom:3}}>⛔ Ngưng hẳn</div><div style={{fontSize:12,color:C.textMid}}>Hủy toàn bộ suất ăn bệnh lý của bệnh nhân</div></button></div></div></div>);
+  if (step==="tamNgung") return (<div style={overlay}><div style={box}><Hdr title="Tạm ngưng suất ăn" /><div style={{padding:16,display:"flex",flexDirection:"column",gap:14}}><div style={{background:"#FEF5EC",borderRadius:8,padding:"10px 12px",fontSize:12,color:C.edit}}>⏸ Hệ thống sẽ nhắc nhở khi hết thời gian tạm ngưng</div><div><div style={{fontSize:11,fontWeight:700,color:C.textMid,marginBottom:6,textTransform:"uppercase"}}>Từ</div><div style={{display:"flex",gap:8}}><input type="date" value={tuNgay} min={today} onChange={e=>setTuNgay(e.target.value)} style={{...fld,flex:1}} /><select value={tuCu} onChange={e=>setTuCu(e.target.value)} style={{...fld,flex:"0 0 96px"}}><option value="">Cữ</option>{ALL_CU_TIMES.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div><div style={{fontSize:11,fontWeight:700,color:C.textMid,marginBottom:6,textTransform:"uppercase"}}>Đến</div><div style={{display:"flex",gap:8}}><input type="date" value={denNgay} min={tuNgay||today} onChange={e=>setDenNgay(e.target.value)} style={{...fld,flex:1}} /><select value={denCu} onChange={e=>setDenCu(e.target.value)} style={{...fld,flex:"0 0 96px"}}><option value="">Cữ</option>{ALL_CU_TIMES.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setStep("choose")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"1px solid "+C.border,background:C.white,cursor:"pointer",fontSize:13,color:C.textMid,fontWeight:600}}>← Quay lại</button><button onClick={()=>setStep("confirm")} disabled={!tuNgay||!tuCu||!denNgay||!denCu} style={{flex:2,padding:"10px 0",borderRadius:8,border:"none",background:(!tuNgay||!tuCu||!denNgay||!denCu)?C.dimBg:C.edit,color:(!tuNgay||!tuCu||!denNgay||!denCu)?C.dimTx:"#fff",cursor:(!tuNgay||!tuCu||!denNgay||!denCu)?"not-allowed":"pointer",fontSize:13,fontWeight:700}}>Xác nhận tạm ngưng</button></div></div></div></div>);
+  if (step==="ngungHan") return (<div style={overlay}><div style={box}><Hdr title="Ngưng hẳn suất ăn" /><div style={{padding:16,display:"flex",flexDirection:"column",gap:14}}><div style={{background:C.redLight,borderRadius:8,padding:"12px 14px"}}><div style={{fontWeight:700,color:C.red,marginBottom:4,fontSize:13}}>⚠ Xác nhận ngưng hẳn?</div><div style={{fontSize:12,color:C.textMid,lineHeight:1.6}}>Toàn bộ suất ăn bệnh lý sẽ bị hủy.<br/>Nếu BN đang ở phòng dịch vụ, hệ thống tự chuyển sang suất dịch vụ chờ duyệt.</div></div><div><div style={{fontSize:11,fontWeight:700,color:C.textMid,marginBottom:6,textTransform:"uppercase"}}>Ghi chú</div><textarea value={lydo} onChange={e=>setLydo(e.target.value)} placeholder="Lý do ngưng hẳn..." rows={2} style={{...fld,resize:"none",fontFamily:"inherit"}} /></div><div style={{display:"flex",gap:8}}><button onClick={()=>setStep("choose")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"1px solid "+C.border,background:C.white,cursor:"pointer",fontSize:13,color:C.textMid,fontWeight:600}}>← Quay lại</button><button onClick={()=>setStep("confirm")} style={{flex:2,padding:"10px 0",borderRadius:8,border:"none",background:C.red,color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>⛔ Xác nhận ngưng hẳn</button></div></div></div></div>);
+  return (<div style={overlay}><div style={box}><Hdr title={loai==="tam"?"Đã tạm ngưng":"Đã ngưng hẳn"} /><div style={{padding:20,display:"flex",flexDirection:"column",alignItems:"center",gap:12,textAlign:"center"}}><div style={{fontSize:36}}>{loai==="tam"?"⏸":"⛔"}</div>{loai==="tam"?(<div style={{fontSize:13,color:C.text,lineHeight:1.7}}>Đã tạm ngưng từ cữ <strong>{tuCu}</strong> ngày <strong>{tuNgay}</strong><br/>đến cữ <strong>{denCu}</strong> ngày <strong>{denNgay}</strong></div>):(<div style={{fontSize:13,color:C.text,lineHeight:1.7}}>Suất ăn bệnh lý đã được ngưng hẳn.<br/><span style={{color:C.textMid}}>Hệ thống đã kiểm tra phòng dịch vụ.</span></div>)}{lydo&&(<div style={{fontSize:12,color:C.textMid,background:C.grayLight,borderRadius:6,padding:"6px 10px",textAlign:"left",width:"100%"}}>📝 {lydo}</div>)}<button onClick={onClose} style={{width:"100%",padding:"11px 0",borderRadius:8,border:"none",background:C.primary,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Đóng</button></div></div></div>);
+}
+
+const mkFood = () => ({ qty:"", cuSlots:[] });
+
+function FoodRow({ foodId, label, codes, activeFoods, state, setState, disabledByMax, allSlotTimes }) {
+  const { qty, cuSlots } = state;
+  const timeOpts = CU_TIMES[foodId] || [];
+  const hasML = ["sua_thuong","sua_dac_tri","sonde"].includes(foodId);
+  const hasCodes = codes && codes.length > 0;
+  const enabled = (() => {
+    if (activeFoods.length === 0) return true;
+    if (activeFoods.includes(foodId)) return true;
+    return activeFoods.some(a => isComboAllowed(a, foodId));
+  })();
+  const active = Number(qty) > 0;
+  const blocked = !enabled || (disabledByMax && !active);
+  const otherTimes = allSlotTimes.filter(x => x.fid !== foodId).map(x => x.time);
+
+  function setQty(v) {
+    const n = Math.min(Number(v)||0, timeOpts.length);
+    const usedTimes = [];
+    const slots = Array.from({ length: n }, (_, i) => {
+      if (cuSlots[i]) { usedTimes.push(cuSlots[i].time); return cuSlots[i]; }
+      const avail = timeOpts.find(t => !usedTimes.includes(t)) || timeOpts[i] || "";
+      usedTimes.push(avail);
+      return { time: avail, ml:"", code:"" };
+    });
+    setState(p => ({ ...p, qty: String(n), cuSlots: slots }));
+  }
+  function upSlot(i, k, v) { setState(p => { const s=[...p.cuSlots]; s[i]={...s[i],[k]:v}; return {...p,cuSlots:s}; }); }
+
+  return (
+    <div style={{ borderBottom:"1px solid "+C.divider, background:active?C.greenLight:enabled?C.white:C.dimBg }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px 6px", opacity:blocked?0.4:1 }}>
+        <span style={{ fontWeight:active?700:400, fontSize:13, minWidth:68, color:active?C.green:C.text }}>{label}</span>
+        <input type="number" min="0" max={timeOpts.length} value={qty} disabled={blocked} onChange={e=>setQty(e.target.value)} placeholder="0"
+          style={blInp({ width:48, textAlign:"center", fontSize:14, border:"1.5px solid "+(active?C.green:C.border), background:active?C.greenLight:C.white })} />
+        <span style={{ fontSize:12, color:C.textMid }}>cữ</span>
+        {!enabled && <span style={{ fontSize:11, color:C.dimTx, fontStyle:"italic" }}>Không khả dụng (combo)</span>}
+        {enabled && !active && <span style={{ fontSize:11, color:C.textLight, fontStyle:"italic" }}>Nhập số cữ để khai báo</span>}
+      </div>
+      {active && (
+        <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 14px 10px", flexWrap:"wrap" }}>
+          {cuSlots.map((slot, i) => {
+            const dupInFood = cuSlots.some((s,j)=>j!==i&&s.time===slot.time);
+            const dupCross  = otherTimes.includes(slot.time);
+            const isDup = dupInFood || dupCross;
+            return (
+              <div key={i} style={{ border:"1.5px solid "+(isDup?C.red:C.border), borderRadius:8, padding:"8px 10px", minWidth:138, flexShrink:0, background:isDup?C.redLight:C.white }}>
+                {isDup && <div style={{ fontSize:10, color:C.red, fontWeight:700, marginBottom:5 }}>⚠ Trùng giờ {dupCross?"(food khác)":""}</div>}
+                <select value={slot.time} onChange={e=>upSlot(i,"time",e.target.value)} style={{ width:"100%", fontWeight:700, fontSize:12, borderRadius:5, border:"none", background:isDup?C.red:C.primary, color:"#fff", padding:"4px 6px", marginBottom:6, cursor:"pointer", outline:"none" }}>
+                  {timeOpts.map(t => { const taken=cuSlots.some((s,j)=>j!==i&&s.time===t)||otherTimes.includes(t); return <option key={t} value={t} style={{background:C.white,color:taken?C.red:C.text}}>{t}{taken?" ⚠":""}</option>; })}
+                </select>
+                {hasML && (
+                  <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
+                    <input type="number" min="0" value={slot.ml} onChange={e=>upSlot(i,"ml",e.target.value)} placeholder="ml" style={blInp({width:64,textAlign:"center"})} />
+                    <span style={{ fontSize:11, color:C.textMid }}>ml</span>
+                  </div>
+                )}
+                {hasCodes && (
+                  <select value={slot.code} onChange={e=>upSlot(i,"code",e.target.value)} style={{...blSelSt,width:"100%",fontSize:11}}>
+                    <option value="">— mã —</option>
+                    {codes.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const BL_MOCK_BN_LIST = [
+  {id:"BN001",name:"Nguyễn Văn An",   dob:"2022-03-15",ward:"Nhi Tổng hợp", room:"P.205–G.3",status:"cho_xu_ly",ma:null,   nguon:"chuyen_dv"},
+  {id:"BN003",name:"Lê Hoàng Cường",  dob:"2021-11-05",ward:"Tiêu hoá Nhi", room:"P.301–G.2",status:"cho_xu_ly",ma:null,   nguon:"moi"},
+  {id:"BN004",name:"Phạm Thị Dung",   dob:"2023-01-10",ward:"Sơ sinh",       room:"P.102–G.4",status:"cho_xu_ly",ma:null,   nguon:"het_ngung"},
+  {id:"BN002",name:"Trần Thị Bình",   dob:"2019-07-20",ward:"Nhi Tổng hợp", room:"P.206–G.1",status:"da_xu_ly", ma:"3TH01",nguon:"moi"},
+  {id:"BN005",name:"Hoàng Minh Đức",  dob:"2018-09-25",ward:"Thận Niệu",    room:"P.401–G.1",status:"da_xu_ly", ma:"5TN02",nguon:"moi"},
+  {id:"BN006",name:"Vũ Thị Lan",      dob:"2020-04-12",ward:"Tiêu hoá Nhi", room:"P.302–G.3",status:"da_xu_ly", ma:"4GM01",nguon:"chuyen_dv", tamNgung:{denCu:"Cữ 6 (21:00)",denNgay:"28/06"}},
+  {id:"BN010",name:"Đỗ Minh Quân",    dob:"2019-05-10",ward:"Hô hấp",       room:"P.305–G.2",status:"da_xu_ly", ma:"5NK01",nguon:"moi", xuatVien:{gio:"10:15 hôm nay"}},
+  {id:"BN011",name:"Bùi Gia Hân",     dob:"2020-08-15",ward:"Tiêu hoá Nhi", room:"P.303–G.1",status:"bi_tra_ve",ma:"3TH02",nguon:"moi", traVe:{lyDo:"Thiếu mã sữa cho cữ sonde",gio:"08:35"}},
+];
+const BL_MOCK_PATIENTS = [
+  {id:"BN007",name:"Đinh Văn Em",    dob:"2017-08-03",ward:"Hô hấp",       room:"P.501–G.2"},
+  {id:"BN008",name:"Cao Thị Phượng", dob:"2022-12-01",ward:"Nhi Tổng hợp", room:"P.207–G.1"},
+];
+const BL_MOCK_HISTORY = [
+  {date:"2026-06-24",ma:"4TH01",items:[{food:"Sữa BT",cu:"03:00",ml:150,code:"SUA013"},{food:"Sữa BT",cu:"09:00",ml:150,code:"SUA013"},{food:"Sonde",cu:"06:00",ml:200,code:"BN-SS04"}]},
+  {date:"2026-06-23",ma:"4TH01",items:[{food:"Sữa BT",cu:"03:00",ml:150,code:"SUA013"},{food:"Cháo",cu:"11:00",ml:null,code:null},{food:"Cháo",cu:"17:00",ml:null,code:null}]},
+];
+const NGUON_LABEL = {moi:"Mới nhập",chuyen_dv:"Từ DV",het_ngung:"Hết ngưng"};
+const NGUON_BG    = {moi:C.primaryLight,chuyen_dv:"#FEF5EC",het_ngung:C.greenLight};
+const NGUON_COLOR = {moi:C.primary,chuyen_dv:C.edit,het_ngung:C.green};
+
+function BenhLyTab() {
+  const isDesktop = useIsDesktop();
+  const [bnList, setBnList]         = useState(BL_MOCK_BN_LIST);
+  const [code, setCode]             = useState("");
+  const [searchResults, setResults] = useState(null);
+  const [patient, setPatient]       = useState(null);
+  const [ageGroup, setAgeGroup]     = useState(null);
+  const [blTab, setBlTab]           = useState("dang-ky");
+  const [showNgung, setShowNgung]   = useState(false);
+  const [dis, setDis]               = useState("");
+  const [ord, setOrd]               = useState("");
+  const [suaT, setSuaT]             = useState(mkFood());
+  const [suaD, setSuaD]             = useState(mkFood());
+  const [sonde, setSonde]           = useState(mkFood());
+  const [chao, setChao]             = useState(mkFood());
+  const [com, setCom]               = useState(mkFood());
+  const [nutr, setNutr]             = useState({kcal:"",l:"",p:"",g:""});
+  const [noteExtra, setNoteExtra]   = useState("");
+  const [saveErr, setSaveErr]       = useState("");
+
+  // Đọc danh sách bệnh nhân Bệnh lý từ Supabase (nếu đã cấu hình); lỗi → giữ mock
+  useEffect(() => {
+    if (!(window.SUAT_DB && window.SUAT_DB.configured() && window.SUAT_DB.fetchBenhNhan)) return;
+    window.SUAT_DB.fetchBenhNhan("BL").then(res => {
+      if (res && !res.error && Array.isArray(res.data) && res.data.length) {
+        setBnList(res.data.map(r => ({
+          id: r.ma_bn, name: r.ho_ten, dob: r.ngay_sinh, ward: r.khoa,
+          room: (r.phong || r.giuong) ? ("P." + (r.phong || "") + "–G." + (r.giuong || "")) : "",
+          status: r.trang_thai, ma: r.ma_benh_ly, nguon: r.nguon
+        })));
+      }
+    });
+  }, []);
+
+  function search() {
+    if (!code.trim()) return;
+    const q = code.toLowerCase();
+    setResults(BL_MOCK_PATIENTS.filter(p => p.name.toLowerCase().includes(q)||p.id.toLowerCase().includes(q)||p.room.toLowerCase().includes(q)));
+  }
+  function selectPatient(p) {
+    setPatient(p); setAgeGroup(calcAgeGroup(p.dob)); setBlTab("dang-ky"); setSaveErr("");
+    setDis(""); setOrd(""); setSuaT(mkFood()); setSuaD(mkFood()); setSonde(mkFood()); setChao(mkFood()); setCom(mkFood());
+    setNutr({kcal:"",l:"",p:"",g:""}); setNoteExtra("");
+  }
+  function closePatient() { setPatient(null); setAgeGroup(null); }
+
+  const foodList = [{id:"sua_thuong",s:suaT},{id:"sua_dac_tri",s:suaD},{id:"sonde",s:sonde},{id:"chao",s:chao},{id:"com",s:com}];
+  const activeFoods  = foodList.filter(f=>Number(f.s.qty)>0).map(f=>f.id);
+  const allSlotTimes = foodList.flatMap(f=>f.s.cuSlots.map(s=>({fid:f.id,time:s.time})));
+  const totalCu      = foodList.reduce((s,f)=>s+(Number(f.s.qty)||0),0);
+  const maBenhLy     = ageGroup&&dis&&ord ? ageGroup.prefix+dis+String(ord).padStart(2,"0") : null;
+  const suaDCodes    = dis ? (SUA_DAC_TRI_CODES[dis]||[]) : [];
+  const MAX_CU       = 8;
+  const disabledByMax = totalCu >= MAX_CU;
+
+  function validate() {
+    if (!maBenhLy) { setSaveErr("Vui lòng chọn mã bệnh và số thứ tự."); return false; }
+    if (totalCu < 1) { setSaveErr("Cần ít nhất 1 cữ ăn."); return false; }
+    setSaveErr(""); return true;
+  }
+
+  const traVeBN = bnList.filter(b=>b.status==="bi_tra_ve" && !b.xuatVien);
+  const choBN = bnList.filter(b=>b.status==="cho_xu_ly" && !b.xuatVien);
+  const daBN  = bnList.filter(b=>b.status==="da_xu_ly" && !b.xuatVien);
+  const xuatVienBN = bnList.filter(b=>b.xuatVien);
+
+  function BLBNRow({ bn, isNew }) {
+    return (
+      <div onClick={()=>selectPatient(bn)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",cursor:"pointer",background:C.white,borderBottom:"1px solid "+C.divider}} onMouseEnter={e=>e.currentTarget.style.background=C.primaryLight} onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+        <div style={{width:34,height:34,borderRadius:"50%",background:isNew?C.edit:C.primary,color:"#fff",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>{bn.name.split(" ").pop().charAt(0)}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+            <span style={{fontSize:13,fontWeight:700}}>{bn.name}</span>
+            {bn.ma && <BLChip bg={C.greenLight} color={C.green}>{bn.ma}</BLChip>}
+            <span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:NGUON_BG[bn.nguon],color:NGUON_COLOR[bn.nguon]}}>{NGUON_LABEL[bn.nguon]}</span>
+            {bn.tamNgung && <span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:C.yellowLight,color:C.yellow}}>⏸ Ngưng đến {bn.tamNgung.denCu} · {bn.tamNgung.denNgay}</span>}
+            {bn.traVe && <span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:C.redLight,color:C.red}}>↩️ KDD trả về</span>}
+          </div>
+          <div style={{fontSize:11,color:C.textMid}}>{bn.ward} · {bn.room} · {bn.dob}</div>
+          {bn.traVe && <div style={{fontSize:11,color:C.red,marginTop:2}}>↩️ {bn.traVe.lyDo}{bn.traVe.gio?` · ${bn.traVe.gio}`:""}</div>}
+        </div>
+        <span style={{fontSize:18,color:C.textLight}}>›</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth:isDesktop?980:860, margin:"0 auto", padding:"14px 12px" }}>
+      {showNgung && <NgungModal onClose={()=>setShowNgung(false)} />}
+
+      {!patient && (
+        <div style={{ background:C.white, borderRadius:9, border:"1px solid "+C.border, overflow:"hidden", marginBottom:12 }}>
+          <div style={{ padding:"10px 14px", borderBottom:"1px solid "+C.divider, display:"flex", gap:8 }}>
+            <input value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()} placeholder="Tìm BN để bổ sung thêm..." style={blInp({flex:1,padding:"7px 10px",fontSize:13})} />
+            <button onClick={search} style={{background:C.primary,color:"#fff",border:"none",borderRadius:6,padding:"7px 14px",fontWeight:600,cursor:"pointer",fontSize:13,whiteSpace:"nowrap"}}>+ Bổ sung</button>
+          </div>
+          {searchResults !== null && (
+            <div style={{borderBottom:"1px solid "+C.divider}}>
+              {searchResults.length===0 ? <div style={{padding:"10px 14px",fontSize:12,color:C.textMid,textAlign:"center"}}>Không tìm thấy</div>
+                : searchResults.map((p,i)=>(
+                  <div key={p.id} onClick={()=>selectPatient(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",cursor:"pointer",background:"#FFFBF0",borderBottom:i<searchResults.length-1?"1px solid "+C.border:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.primaryLight} onMouseLeave={e=>e.currentTarget.style.background="#FFFBF0"}>
+                    <div style={{width:30,height:30,borderRadius:"50%",background:C.edit,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{p.name.split(" ").pop().charAt(0)}</div>
+                    <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:700}}>{p.name}</div><div style={{fontSize:11,color:C.textMid}}>{p.id} · {p.ward} · {p.room}</div></div>
+                    <span style={{fontSize:11,color:C.edit,fontWeight:600,flexShrink:0}}>+ Thêm ›</span>
+                  </div>
+                ))}
+            </div>
+          )}
+          {traVeBN.length>0 && <div style={{padding:"6px 14px",background:C.redLight,borderBottom:"1px solid "+C.divider,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:10,fontWeight:700,color:C.red,textTransform:"uppercase",letterSpacing:0.5}}>↩️ Bị KDD trả về</span><span style={{fontSize:11,fontWeight:700,color:C.white,background:C.red,borderRadius:10,padding:"1px 7px"}}>{traVeBN.length}</span></div>}
+          {traVeBN.map(bn=><BLBNRow key={bn.id} bn={bn} isNew={true} />)}
+          {choBN.length>0 && <div style={{padding:"6px 14px",background:"#FEF5EC",borderBottom:"1px solid "+C.divider,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:10,fontWeight:700,color:C.edit,textTransform:"uppercase",letterSpacing:0.5}}>● Chờ xử lý</span><span style={{fontSize:11,fontWeight:700,color:C.edit,background:"#FDDBC7",borderRadius:10,padding:"1px 7px"}}>{choBN.length}</span></div>}
+          {choBN.map(bn=><BLBNRow key={bn.id} bn={bn} isNew={true} />)}
+          {choBN.length>0&&daBN.length>0&&<div style={{display:"flex",alignItems:"center",gap:10,padding:"5px 14px",background:C.grayLight,borderBottom:"1px solid "+C.divider}}><div style={{flex:1,height:1,background:C.border}}/><span style={{fontSize:10,color:C.textLight,fontWeight:600,textTransform:"uppercase",letterSpacing:0.5}}>Đã xử lý</span><div style={{flex:1,height:1,background:C.border}}/></div>}
+          {daBN.map(bn=><BLBNRow key={bn.id} bn={bn} isNew={false} />)}
+          {xuatVienBN.length>0 && (
+            <div style={{ padding:"8px 14px", background:C.grayLight, borderTop:"1px solid "+C.divider }}>
+              <div style={{ fontSize:10, fontWeight:700, color:C.textLight, textTransform:"uppercase", letterSpacing:0.5, marginBottom:5 }}>🚪 Đã xuất viện — đã rời danh sách</div>
+              {xuatVienBN.map(bn=>(
+                <div key={bn.id} style={{ fontSize:12, color:C.textMid, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
+                  <span style={{ textDecoration:"line-through" }}>{bn.name}</span>
+                  <span style={{ fontSize:11, color:C.textLight }}>· {bn.room} · API xuất viện {bn.xuatVien.gio}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {patient && (
+        <div>
+          <div style={{ background:C.primaryLight, borderRadius:8, border:"1px solid "+C.border, overflow:"hidden", marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", padding:"10px 12px", gap:0 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:3 }}>
+                  <span style={{ fontSize:14, fontWeight:700, whiteSpace:"nowrap" }}>{patient.name}</span>
+                  <span style={{ fontSize:11, color:C.textMid, whiteSpace:"nowrap", flexShrink:0 }}>{patient.dob}</span>
+                </div>
+                <div style={{ fontSize:11, color:C.textMid, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{patient.ward} · {patient.room}</div>
+              </div>
+              <div style={{ display:"flex", gap:6, flexShrink:0, marginLeft:10 }}>
+                <button onClick={()=>setShowNgung(true)} style={{background:C.green,color:"#fff",border:"none",borderRadius:6,padding:"5px 12px",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>⏸ Ngưng</button>
+                <button onClick={closePatient} style={{background:C.grayLight,color:C.textMid,border:"1px solid "+C.border,borderRadius:6,padding:"5px 10px",fontWeight:700,fontSize:13,cursor:"pointer"}}>✕</button>
+              </div>
+            </div>
+            <div style={{ borderTop:"1px solid "+C.border, background:"rgba(255,255,255,0.55)", padding:"8px 12px", display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap" }}>
+              <span style={{ fontSize:11, color:C.textMid, fontWeight:600, flexShrink:0 }}>Mã :</span>
+              <div style={{ padding:"4px 8px", borderRadius:5, flexShrink:0, background:C.dimBg, color:C.dimTx, fontSize:11, fontWeight:700, border:"1px solid "+C.border, whiteSpace:"nowrap" }}>{ageGroup ? ageGroup.prefix+" · "+ageGroup.label : "—"}</div>
+              <span style={{ color:C.textLight, flexShrink:0 }}>+</span>
+              <select value={dis} onChange={e=>{setDis(e.target.value);setOrd("");}} style={{...blSelSt,width:54,fontWeight:700,fontSize:13,textAlign:"center",padding:"4px 2px",flexShrink:0,border:"1.5px solid "+((!dis&&saveErr)?C.red:C.border)}}><option value="">--</option>{DISEASE_GROUPS.map(d=><option key={d.code} value={d.code}>{d.code}</option>)}</select>
+              <span style={{ color:C.textLight, flexShrink:0 }}>+</span>
+              <input type="number" min="1" max="9" value={ord} onChange={e=>setOrd(e.target.value)} disabled={!dis} placeholder="01" style={blInp({width:46,textAlign:"center",fontSize:13,flexShrink:0,fontWeight:600,padding:"4px 4px",opacity:dis?1:0.4,border:"1.5px solid "+((!ord&&saveErr)?C.red:C.border)})} />
+              <div style={{ marginLeft:4, padding:"4px 12px", borderRadius:6, flexShrink:0, background:maBenhLy?C.greenLight:C.dimBg, border:"1.5px solid "+(maBenhLy?C.green:C.border), fontSize:15, fontWeight:800, color:maBenhLy?C.green:C.dimTx, letterSpacing:1.5, minWidth:70, textAlign:"center" }}>{maBenhLy||"—"}</div>
+              {totalCu>0&&<div style={{marginLeft:"auto",flexShrink:0}}><BLChip bg={totalCu>=MAX_CU?C.redLight:C.greenLight} color={totalCu>=MAX_CU?C.red:C.green}>{totalCu}/{MAX_CU} cữ</BLChip></div>}
+            </div>
+          </div>
+
+          <div style={{ background:C.white, borderRadius:9, border:"1px solid "+C.border, overflow:"hidden" }}>
+            <div style={{ display:"flex", borderBottom:"1px solid "+C.divider }}>
+              {[{id:"dang-ky",label:"📋 Đăng ký"},{id:"lich-su",label:"🕐 Lịch sử"}].map(t=>(
+                <button key={t.id} onClick={()=>setBlTab(t.id)} style={{flex:1,padding:"10px 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:blTab===t.id?700:400,background:blTab===t.id?C.white:C.grayLight,color:blTab===t.id?C.primary:C.textMid,borderBottom:blTab===t.id?"2px solid "+C.primary:"2px solid transparent"}}>{t.label}</button>
+              ))}
+            </div>
+
+            {blTab==="lich-su" && (
+              <div style={{padding:"12px 14px"}}>
+                {BL_MOCK_HISTORY.map((day,di)=>(
+                  <div key={di} style={{marginBottom:16}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                      <span style={{fontSize:12,fontWeight:700}}>{day.date}</span>
+                      <BLChip bg={C.greenLight} color={C.green}>{day.ma}</BLChip>
+                    </div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {day.items.map((it,ii)=>(
+                        <div key={ii} style={{border:"1px solid "+C.border,borderRadius:7,padding:"7px 10px",minWidth:110,background:C.grayLight,fontSize:12}}>
+                          <div style={{fontWeight:700,color:C.primary,marginBottom:3}}>{it.cu}</div>
+                          <div style={{color:C.text,marginBottom:2}}>{it.food}</div>
+                          {it.ml&&<div style={{color:C.textMid,fontSize:11}}>{it.ml} ml</div>}
+                          {it.code&&<div style={{color:C.textMid,fontSize:10}}>{it.code}</div>}
+                        </div>
+                      ))}
+                    </div>
+                    {di<BL_MOCK_HISTORY.length-1&&<div style={{height:1,background:C.divider,marginTop:14}}/>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {blTab==="dang-ky" && (
+              <div>
+                <div style={{padding:"7px 14px",background:C.grayLight,borderBottom:"1px solid "+C.divider,fontSize:10,fontWeight:700,color:C.textMid,textTransform:"uppercase",letterSpacing:0.5}}>Lựa chọn cữ ăn</div>
+                <FoodRow foodId="sua_thuong" label="Sữa BT" codes={SUA_THUONG_CODES} activeFoods={activeFoods} state={suaT} setState={setSuaT} disabledByMax={disabledByMax} allSlotTimes={allSlotTimes} />
+                <FoodRow foodId="sua_dac_tri" label="Sữa ĐB" codes={suaDCodes.length?suaDCodes:SUA_THUONG_CODES} activeFoods={activeFoods} state={suaD} setState={setSuaD} disabledByMax={disabledByMax} allSlotTimes={allSlotTimes} />
+                <FoodRow foodId="sonde" label="Sonde" codes={SONDE_CODES} activeFoods={activeFoods} state={sonde} setState={setSonde} disabledByMax={disabledByMax} allSlotTimes={allSlotTimes} />
+                <FoodRow foodId="chao" label="Cháo" codes={null} activeFoods={activeFoods} state={chao} setState={setChao} disabledByMax={disabledByMax} allSlotTimes={allSlotTimes} />
+                <FoodRow foodId="com" label="Cơm" codes={null} activeFoods={activeFoods} state={com} setState={setCom} disabledByMax={disabledByMax} allSlotTimes={allSlotTimes} />
+                <div style={{ borderTop:"1px solid "+C.divider, padding:"12px 14px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap", marginBottom:5 }}>
+                    <span style={{fontSize:10,fontWeight:700,color:C.textMid,flexShrink:0}}>CAL</span>
+                    <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+                      <BLEditNum value={nutr.kcal} onChange={v=>setNutr(p=>({...p,kcal:v}))} w={60} />
+                      <span style={{fontSize:10,color:C.textMid}}>kcal</span>
+                    </div>
+                    <div style={{width:1,height:20,background:C.divider,flexShrink:0,margin:"0 2px"}}/>
+                    <span style={{fontSize:10,fontWeight:700,color:C.textMid,flexShrink:0}}>L/P/G</span>
+                    {[{k:"l",l:"L"},{k:"p",l:"P"},{k:"g",l:"G"}].map(f=>(
+                      <div key={f.k} style={{display:"flex",alignItems:"center",gap:2,flexShrink:0}}>
+                        <span style={{fontSize:11,color:C.textMid,fontWeight:600}}>{f.l}</span>
+                        <BLEditNum value={nutr[f.k]} onChange={v=>setNutr(p=>({...p,[f.k]:v}))} w={48} />
+                        <span style={{fontSize:10,color:C.textMid}}>g</span>
+                      </div>
+                    ))}
+                  </div>
+                  {saveErr && <div style={{fontSize:11,color:C.red,background:C.redLight,borderRadius:6,padding:"7px 10px",marginBottom:10,lineHeight:1.5}}>⚠ {saveErr}</div>}
+                  <div style={{marginBottom:10}}>
+                    <div style={{fontSize:10,fontWeight:700,color:C.textMid,marginBottom:5,textTransform:"uppercase",letterSpacing:0.4}}>Ghi chú</div>
+                    <textarea value={noteExtra} onChange={e=>setNoteExtra(e.target.value)} placeholder="Dị ứng, yêu cầu đặc biệt..." rows={2} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid "+C.border,fontSize:12,resize:"none",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>validate()&&alert("Đã lưu!")} style={{flex:1,background:C.white,color:C.primary,border:"1.5px solid "+C.primary,borderRadius:8,padding:"10px 0",fontWeight:700,cursor:"pointer",fontSize:14}}>Lưu</button>
+                    <button onClick={()=>{
+                      if (!validate()) return;
+                      if (!(window.SUAT_DB && window.SUAT_DB.configured())) { alert("Chưa cấu hình Supabase — không ghi được."); return; }
+                      try {
+                        const room = patient.room || "";
+                        const parts = room.replace(/^P\.?/, "").split(/[–-]/);
+                        const phong = (parts[0]||"").trim();
+                        const giuong = (parts[1]||"").replace(/^G\.?/, "").trim();
+                        const nhom = ageGroup ? Number(ageGroup.prefix) : null;
+                        const buoiOf = (t) => { const h = parseInt(t,10); return h>=4&&h<11?"Sáng":h>=11&&h<15?"Trưa":"Chiều"; };
+                        const FOODS = [
+                          { st: com,   loai:"com_bl",  food:"com",    bp:"bep_benh_ly", code:false },
+                          { st: chao,  loai:"chao_bl", food:"chao",   bp:"bep_benh_ly", code:false },
+                          { st: suaT,  loai:"sua_bt",  food:"sua_bt", bp:"sua_soup",    code:true  },
+                          { st: suaD,  loai:"sua_db",  food:"sua_db", bp:"sua_soup",    code:true  },
+                          { st: sonde, loai:"sonde",   food:"sonde",  bp:"sua_soup",    code:true  },
+                        ];
+                        const rows = [];
+                        FOODS.forEach(f => { (f.st.cuSlots || []).forEach(s => { if (!s.time) return; rows.push({
+                          ma_bn: patient.id, ho_ten: patient.name, khoa: patient.ward,
+                          phong, giuong, ngay_sinh: patient.dob, nhom_tuoi: nhom,
+                          cu: s.time, buoi: buoiOf(s.time),
+                          loai_food: f.food, loai: f.loai, loai_suat: "BL", bo_phan: f.bp,
+                          ma_che_do: f.code ? (s.code || "") : maBenhLy, dis: dis,
+                          kcal: Number(nutr.kcal)||null, protein_g: Number(nutr.p)||null,
+                          lipid_g: Number(nutr.l)||null, glucid_g: Number(nutr.g)||null,
+                          xay: false, nem: false, ghi_chu: noteExtra || "", trang_thai: "khoa_gui"
+                        }); }); });
+                        if (!rows.length) { alert("Chưa có cữ nào để gửi."); return; }
+                        window.SUAT_DB.insert(rows).then(res => {
+                          if (res && res.error) alert("Lỗi gửi Supabase: " + (res.error.message || res.error));
+                          else { window.SUAT_DB.updateBenhNhan(patient.id, "BL", { trang_thai:"da_xu_ly", ma_benh_ly:maBenhLy }); setBnList(prev => prev.map(b => b.id===patient.id ? {...b, status:"da_xu_ly", ma:maBenhLy} : b)); alert(`✓ Đã ghi ${rows.length} suất bệnh lý lên hệ thống`); closePatient(); }
+                        });
+                      } catch (e) { alert("Lỗi xử lý: " + e.message); }
+                    }} style={{flex:2,background:C.primary,color:"#fff",border:"none",borderRadius:8,padding:"10px 0",fontWeight:700,cursor:"pointer",fontSize:14}}>Lưu & Duyệt →</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ══  TAB 3: GỬI DINH DƯỠNG  ═══════════════════════════════
+// ═══════════════════════════════════════════════════════════
+const BUOI_DATA_INIT = [
+  { id:"trua",   ten:"Buổi Trưa",        deadlineLabel:"09:00 sáng nay",  deadlineMs: Date.now()+45*60*1000,    dvCu:["BN001","BN002","BN003","BN004","BN005","BN006","BN007","BN008","BN009","BN010","BN013","BN014","BN015"], dvMoi:["BN016","BN017","BN018"], blSan:["BN101","BN102","BN103","BN104"], blChua:["BN105","BN106"], blChuaTen:["Trần Thị L (mới thêm)","Phạm Văn M (chuyển từ DV)"], cuBL:["Cữ 3 (12:00)"], guiLog:[{gio:"07:30",dvCount:10,blCount:3}], locked:false },
+  { id:"chieu",  ten:"Buổi Chiều-Tối",   deadlineLabel:"15:00 chiều nay", deadlineMs: Date.now()+150*60*1000,   dvCu:["BN001","BN002","BN003","BN004","BN005","BN006","BN007","BN008","BN009","BN010","BN013","BN014"], dvMoi:["BN019","BN020","BN021"], blSan:["BN101","BN102","BN103","BN104","BN105","BN106","BN107","BN108"], blChua:["BN109","BN110"], blChuaTen:["Nguyễn Văn N (mới thêm)","Lê Thị O (chuyển từ DV)"], cuBL:["Cữ 4 (15:00)","Cữ 5 (18:00)","Cữ 6 (21:00)","Cữ 7 (00:00)","Cữ 8 (03:00)"], guiLog:[], locked:false },
+  { id:"sang",   ten:"Buổi Sáng (mai)",  deadlineLabel:"15:00 chiều nay", deadlineMs: Date.now()+6*60*60*1000,  dvCu:["BN001","BN002","BN003","BN004","BN005","BN006","BN007","BN008","BN009","BN010"], dvMoi:["BN011","BN012"], blSan:["BN101","BN102","BN103","BN104","BN105","BN106"], blChua:["BN107"], blChuaTen:["Ngô Thị K (chuyển từ DV)"], cuBL:["Cữ 1 (06:00)","Cữ 2 (09:00)"], guiLog:[], locked:false },
+];
+
+function useCountdown(targetMs) {
+  const [diff, setDiff] = useState(targetMs - Date.now());
+  useEffect(() => { const t = setInterval(()=>setDiff(targetMs-Date.now()),1000); return ()=>clearInterval(t); }, [targetMs]);
+  if (diff <= 0) return null;
+  const h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000), s=Math.floor((diff%60000)/1000);
+  if (h>0) return `${h}g ${m}p`;
+  if (m>0) return `${m}p ${s}s`;
+  return `${s}s`;
+}
+
+function ModalXacNhan({ buoi, onConfirm, onCancel }) {
+  const daGui = buoi.guiLog.length > 0;
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(13,31,45,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:16 }}>
+      <div style={{ background:C.white, borderRadius:12, width:"100%", maxWidth:420, boxShadow:"0 8px 32px rgba(13,31,45,0.18)" }}>
+        <div style={{ padding:"18px 20px 14px", borderBottom:`1px solid ${C.borderLight}` }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.primary, letterSpacing:1, marginBottom:4 }}>{daGui?"CẬP NHẬT DANH SÁCH":"GỬI DANH SÁCH"}</div>
+          <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{buoi.ten}</div>
+        </div>
+        <div style={{ padding:"16px 20px" }}>
+          <div style={{ background:C.primaryLight, borderRadius:8, padding:"10px 12px", marginBottom:14, fontSize:12, color:C.primary }}>
+            <span style={{ fontWeight:600 }}>Bệnh lý gộp: </span>{buoi.cuBL.join(" · ")}
+          </div>
+          <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+            <div style={{ flex:1, background:C.grayLight, borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
+              <div style={{ fontSize:22, fontWeight:800, color:C.primary }}>{buoi.dvCu.length}</div>
+              <div style={{ fontSize:11, color:C.textMid, marginTop:2 }}>BN Dịch vụ</div>
+            </div>
+            <div style={{ flex:1, background:C.grayLight, borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
+              <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{buoi.blSan.length}</div>
+              <div style={{ fontSize:11, color:C.textMid, marginTop:2 }}>BN Bệnh lý</div>
+            </div>
+          </div>
+          {(buoi.dvMoi.length>0||buoi.blChua.length>0) && (
+            <div style={{ background:C.yellowLight, border:`1px solid #E8C84A`, borderRadius:8, padding:"10px 12px", marginBottom:14 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.yellow, marginBottom:6 }}>Sẽ không được gửi</div>
+              {buoi.dvMoi.length>0 && <div style={{ fontSize:12, color:C.textMid, marginBottom:4 }}>· Dịch vụ: {buoi.dvMoi.length} BN chưa xác nhận</div>}
+              {buoi.blChua.length>0 && <div style={{ fontSize:12, color:C.textMid }}>· Bệnh lý: {buoi.blChua.length} BN chưa xác nhận<div style={{ paddingLeft:10, marginTop:4 }}>{buoi.blChuaTen.map((t,i)=><div key={i} style={{ fontSize:11, color:C.gray }}>– {t}</div>)}</div></div>}
+            </div>
+          )}
+          {daGui && <div style={{ fontSize:12, color:C.textLight, marginBottom:14 }}>Lần gửi trước: {buoi.guiLog[buoi.guiLog.length-1].gio} — sẽ cập nhật đè lên.</div>}
+        </div>
+        <div style={{ padding:"12px 20px 18px", display:"flex", gap:10 }}>
+          <button onClick={onCancel} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1.5px solid ${C.border}`, background:C.white, fontSize:13, fontWeight:600, color:C.gray, cursor:"pointer" }}>Huỷ</button>
+          <button onClick={onConfirm} style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:C.primary, fontSize:13, fontWeight:700, color:C.white, cursor:"pointer" }}>{daGui?"Cập nhật danh sách":"Gửi khoa dinh dưỡng"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuoiCard({ buoi, onGui }) {
+  const [expanded, setExpanded] = useState(false);
+  const countdown = useCountdown(buoi.deadlineMs);
+  const locked = buoi.locked || !countdown;
+  const daGui = buoi.guiLog.length > 0;
+  const latestLog = daGui ? buoi.guiLog[buoi.guiLog.length-1] : null;
+  const tongSan = buoi.dvCu.length + buoi.blSan.length;
+  const tongChua = buoi.dvMoi.length + buoi.blChua.length;
+  return (
+    <div style={{ background:C.white, border:`1.5px solid ${locked?C.borderLight:daGui?C.primaryMid:C.border}`, borderRadius:12, overflow:"hidden", opacity:locked?0.85:1 }}>
+      <div onClick={()=>setExpanded(!expanded)} style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ width:10, height:10, borderRadius:"50%", flexShrink:0, background:locked?C.grayMid:daGui?C.green:C.orange }} />
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:C.text }}>{buoi.ten}</div>
+          <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>Deadline {buoi.deadlineLabel}</div>
+        </div>
+        <div style={{ textAlign:"right", flexShrink:0 }}>
+          {locked ? <div style={{ fontSize:11, fontWeight:700, color:C.gray, background:C.grayLight, borderRadius:6, padding:"3px 8px" }}>🔒 Đã khoá</div>
+            : countdown ? <div style={{ fontSize:11, fontWeight:700, color:countdown.includes("p")&&!countdown.includes("g")?C.orange:C.yellow }}>⏱ {countdown}</div> : null}
+        </div>
+        <div style={{ fontSize:16, color:C.grayMid, flexShrink:0 }}>{expanded?"▲":"▼"}</div>
+      </div>
+      <div style={{ padding:"0 16px 14px", display:"flex", gap:8 }}>
+        <div style={{ flex:1, background:C.primaryLight, borderRadius:8, padding:"8px 10px" }}>
+          <div style={{ fontSize:11, color:C.primary, fontWeight:600, marginBottom:4 }}>Dịch vụ</div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{buoi.dvCu.length} sẵn sàng</div>
+          {buoi.dvMoi.length>0 && <div style={{ fontSize:11, color:C.orange, marginTop:2 }}>{buoi.dvMoi.length} chưa xác nhận ⚠</div>}
+        </div>
+        <div style={{ flex:1, background:C.greenLight, borderRadius:8, padding:"8px 10px" }}>
+          <div style={{ fontSize:11, color:C.green, fontWeight:600, marginBottom:4 }}>Bệnh lý</div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{buoi.blSan.length} sẵn sàng</div>
+          {buoi.blChua.length>0 && <div style={{ fontSize:11, color:C.orange, marginTop:2 }}>{buoi.blChua.length} chưa xác nhận ⚠</div>}
+        </div>
+      </div>
+      {expanded && (
+        <div style={{ borderTop:`1px solid ${C.borderLight}`, padding:"12px 16px" }}>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:C.textLight, marginBottom:6 }}>CỮ BỆNH LÝ TRONG BUỔI NÀY</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {buoi.cuBL.map((cu,i)=><div key={i} style={{ fontSize:11, fontWeight:600, color:C.primary, background:C.primaryLight, borderRadius:6, padding:"3px 8px" }}>{cu}</div>)}
+            </div>
+          </div>
+          {buoi.blChua.length>0 && (
+            <div style={{ background:C.yellowLight, borderRadius:8, padding:"10px 12px", marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.yellow, marginBottom:6 }}>BỆNH LÝ — CHƯA XÁC NHẬN</div>
+              {buoi.blChuaTen.map((t,i)=><div key={i} style={{ fontSize:12, color:C.textMid, marginBottom:2 }}>· {t}</div>)}
+            </div>
+          )}
+          {buoi.guiLog.length>0 && (
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textLight, marginBottom:6 }}>LỊCH SỬ GỬI</div>
+              {buoi.guiLog.map((log,i)=>(
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, color:C.textMid, marginBottom:4 }}>
+                  <div style={{ width:6, height:6, borderRadius:"50%", background:i===buoi.guiLog.length-1?C.green:C.grayMid, flexShrink:0 }} />
+                  <span style={{ color:C.text, fontWeight:600 }}>{log.gio}</span>— {log.dvCount} DV · {log.blCount} BL
+                  {i===buoi.guiLog.length-1 && <span style={{ fontSize:10, fontWeight:700, color:C.green, background:C.greenLight, borderRadius:4, padding:"1px 6px" }}>Mới nhất</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {!locked && (
+        <div style={{ padding:"0 16px 16px" }}>
+          <button onClick={()=>onGui(buoi)} style={{ width:"100%", padding:"11px 0", borderRadius:8, border:"none", background:daGui?C.green:C.primary, color:C.white, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+            {daGui ? `Cập nhật — ${tongSan} BN (${buoi.dvCu.length} DV · ${buoi.blSan.length} BL)` : `Gửi khoa dinh dưỡng — ${tongSan} BN`}
+          </button>
+          {tongChua>0 && <div style={{ fontSize:11, color:C.orange, textAlign:"center", marginTop:6 }}>{tongChua} BN chưa xác nhận sẽ không được gửi</div>}
+        </div>
+      )}
+      {locked && daGui && (
+        <div style={{ padding:"10px 16px 14px", borderTop:`1px solid ${C.borderLight}`, display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:C.green }} />
+          <span style={{ fontSize:12, color:C.textMid }}>Gửi cuối lúc <strong>{latestLog.gio}</strong> — {latestLog.dvCount} DV · {latestLog.blCount} BL</span>
+        </div>
+      )}
+      {locked && !daGui && (
+        <div style={{ padding:"10px 16px 14px", borderTop:`1px solid ${C.borderLight}` }}>
+          <div style={{ fontSize:12, color:C.red }}>Hết deadline — chưa có lần gửi nào</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuiDinhDuongTab() {
+  const isDesktop = useIsDesktop();
+  const [buoiList, setBuoiList] = useState(BUOI_DATA_INIT);
+  const [modalBuoi, setModalBuoi] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
+  const [dvDb, setDvDb] = useState(null);
+
+  // Đọc bệnh nhân Dịch vụ từ DB để gửi theo danh sách thật (fallback mock nếu lỗi)
+  useEffect(() => {
+    if (!(window.SUAT_DB && window.SUAT_DB.configured() && window.SUAT_DB.fetchBenhNhan)) return;
+    window.SUAT_DB.fetchBenhNhan("DV").then(res => {
+      if (res && !res.error && Array.isArray(res.data)) {
+        setDvDb(res.data.map(r => {
+          const cs = r.chinh_sua || {};
+          return { id:r.ma_bn, ten:r.ho_ten, ngaySinh:r.ngay_sinh, khoa:r.khoa, phong:r.phong, giuong:r.giuong, ghiChu:r.ghi_chu||"", status:r.trang_thai, chinhSua:cs.chinhSua||{}, chinhSua_chao:cs.chinhSua_chao||{} };
+        }));
+      }
+    });
+  }, []);
+
+  function showToast(msg) { setToastMsg(msg); setTimeout(()=>setToastMsg(null),3000); }
+
+  function handleConfirm() {
+    const now = new Date();
+    const gio = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    setBuoiList(prev => prev.map(b => b.id!==modalBuoi.id ? b : {...b,guiLog:[...b.guiLog,{gio,dvCount:b.dvCu.length,blCount:b.blSan.length}]}));
+    const daGui = modalBuoi.guiLog.length > 0;
+    showToast(daGui ? `Đã cập nhật ${modalBuoi.ten} lúc ${gio}` : `Đã gửi ${modalBuoi.ten} lúc ${gio}`);
+    // ── Ghi thật lên Supabase: suất cơm/cháo DV của buổi này ──
+    if (window.SUAT_DB && window.SUAT_DB.configured()) {
+      try {
+        const BUA_CU = { sang:"06:00", trua:"11:00", chieu:"17:00" };
+        const BUA_LB = { sang:"Sáng", trua:"Trưa", chieu:"Chiều" };
+        const bua = modalBuoi.id;
+        const dvPatients = (dvDb || [...BN_MOI_INIT, ...BN_CU_INIT]).filter(b => b.status === "da_

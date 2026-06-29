@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hệ thống suất ăn nội viện – BV Nhi Đồng 1</title>
+<style>
+  :root{
+    --bg:#0e2a3b; --bg2:#103a4f;
+    --teal:#16a39a; --teal-l:#2bc6bb; --teal-d:#0d6f68;
+    --amber:#f5a524; --rose:#ef5d8f; --blue:#3d7eff;
+    --ink:#0e2a3b; --paper:#f6fbfb; --muted:#5b7785; --line:#d6e6e8;
+    --white:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    background:#04141d;color:var(--ink);overflow:hidden;
+  }
+  .deck{width:100vw;height:100vh;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:5.5vh 6vw 7vh;background:var(--paper);
+    animation:fade .45s ease;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* top bar */
+  .kicker{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--teal-d)}
+  .kicker .dot{width:10px;height:10px;border-radius:50%;background:var(--teal)}
+  h1{font-size:clamp(30px,5.4vw,62px);line-height:1.05;margin:14px 0 10px;color:var(--ink)}
+  h2{font-size:clamp(26px,3.6vw,44px);line-height:1.1;margin:10px 0 6px;color:var(--ink)}
+  .lead{font-size:clamp(16px,1.9vw,23px);color:var(--muted);max-width:60ch;line-height:1.5}
+
+  /* COVER */
+  .cover{background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 55%,var(--teal-d) 130%);
+    color:var(--white);justify-content:center}
+  .cover .kicker{color:var(--teal-l)}
+  .cover h1{color:#fff;max-width:18ch}
+  .cover .lead{color:#bcd9dc}
+  .cover .tag{display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:34px}
+  .chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);
+    padding:9px 16px;border-radius:999px;font-size:15px;font-weight:600;color:#eafafa}
+  .cover .org{position:absolute;top:5.5vh;right:6vw;text-align:right;font-size:14px;color:#9fc3c7;line-height:1.5}
+
+  /* flow row */
+  .flow{display:flex;align-items:stretch;gap:0;margin-top:40px;flex-wrap:wrap}
+  .step{flex:1;min-width:220px;background:#fff;border:1px solid var(--line);
+    border-radius:18px;padding:26px 24px;position:relative;box-shadow:0 10px 30px rgba(14,42,59,.06)}
+  .step .num{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    font-weight:800;font-size:19px;color:#fff;margin-bottom:14px}
+  .step h3{font-size:22px;margin-bottom:8px}
+  .step p{font-size:15.5px;color:var(--muted);line-height:1.5}
+  .arrow{display:grid;place-items:center;font-size:30px;color:var(--teal);
+    padding:0 8px;align-self:center}
+  .s1 .num{background:var(--blue)} .s2 .num{background:var(--teal)} .s3 .num{background:var(--amber)}
+
+  /* content two-col */
+  .body{display:flex;gap:46px;margin-top:26px;flex:1;min-height:0}
+  .col{flex:1;display:flex;flex-direction:column;gap:16px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    box-shadow:0 8px 24px rgba(14,42,59,.05)}
+  .panel h4{font-size:17px;color:var(--teal-d);margin-bottom:10px;display:flex;align-items:center;gap:9px}
+  .panel h4 .ic{width:30px;height:30px;border-radius:9px;background:#e3f4f2;display:grid;place-items:center;font-size:16px}
+  ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+  li{font-size:16.5px;line-height:1.45;color:#27424f;padding-left:26px;position:relative}
+  li::before{content:"";position:absolute;left:0;top:9px;width:11px;height:11px;
+    border-radius:3px;background:var(--teal)}
+  li b{color:var(--ink)}
+  .role{display:inline-block;background:#fff5e2;color:#9a6206;font-weight:700;
+    font-size:14px;padding:6px 14px;border-radius:8px;margin-top:4px}
+
+  /* badge strip for screen number */
+  .screenhead{display:flex;align-items:center;gap:18px}
+  .bignum{font-size:64px;font-weight:800;color:var(--line);line-height:1}
+
+  /* mini meal tags */
+  .tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:4px}
+  .mtag{font-size:14.5px;font-weight:600;padding:7px 13px;border-radius:999px;
+    background:#eef7f6;color:var(--teal-d);border:1px solid #cfeae7}
+
+  /* kitchen cards */
+  .kits{display:flex;gap:16px;margin-top:8px}
+  .kit{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+  .kit .e{font-size:30px} .kit b{display:block;margin-top:8px;font-size:16px}
+  .kit span{font-size:13.5px;color:var(--muted)}
+
+  /* closing */
+  .close{background:linear-gradient(135deg,var(--bg) 0%,var(--teal-d) 130%);color:#fff;justify-content:center}
+  .close .kicker{color:var(--teal-l)}
+  .close h2{color:#fff}
+  .vals{display:flex;gap:18px;margin-top:34px;flex-wrap:wrap}
+  .val{flex:1;min-width:200px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+    border-radius:16px;padding:24px}
+  .val .e{font-size:30px}
+  .val b{display:block;font-size:19px;margin:10px 0 6px}
+  .val p{font-size:14.5px;color:#bcd9dc;line-height:1.45}
+
+  /* footer / nav */
+  .foot{position:absolute;left:6vw;right:6vw;bottom:2.6vh;display:flex;
+    justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+  .slide.cover .foot,.slide.close .foot{color:#9fc3c7}
+  .progress{position:absolute;top:0;left:0;height:5px;background:var(--teal);transition:width .35s}
+  .nav{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:20}
+  .nav button{border:none;background:rgba(255,255,255,.85);color:var(--ink);
+    width:40px;height:40px;border-radius:50%;font-size:17px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  .nav button:hover{background:#fff}
+  .pageno{font-weight:700}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1. COVER -->
+  <section class="slide cover active">
+    <div class="org">Bệnh viện Nhi Đồng 1<br>Căn tin – Khoa Dinh dưỡng</div>
+    <div class="kicker"><span class="dot"></span> Hệ thống số hóa suất ăn nội viện</div>
+    <h1>Hệ thống nhận thông tin suất ăn</h1>
+    <p class="lead">Số hóa toàn bộ luồng đặt – duyệt – sản xuất suất ăn cho bệnh nhân, từ khoa lâm sàng đến bếp, trên một nền tảng dữ liệu chung.</p>
+    <div class="tag">
+      <span class="chip">Khoa lâm sàng</span>
+      <span class="chip">Khoa dinh dưỡng</span>
+      <span class="chip">Sản xuất / Bếp</span>
+    </div>
+    <div class="progress" style="width:16.6%"></div>
+    <div class="foot"><span>BV Nhi Đồng 1 · 2026</span><span class="pageno">01 / 06</span></div>
+  </section>
+
+  <!-- 2. OVERVIEW FLOW -->
+  <section class="slide">
+    <div class="kicker"><span class="dot"></span> Tổng quan luồng vận hành</div>
+    <h2>Một luồng thông suốt, ba màn hình phối hợp</h2>
+    <p class="lead">Thông tin suất ăn đi một chiều, có kiểm soát ở từng bước — không trùng lặp, không thất lạc, theo dõi được theo thời gian.</p>
+    <div class="flow">
+      <div class="step s1">
+        <div class="num">1</div>
+        <h3>Khoa lâm sàng</h3>
+        <p>Đăng ký suất ăn cho từng bệnh nhân theo chế độ bệnh lý và dịch vụ.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s2">
+        <div class="num">2</div>
+        <h3>Khoa dinh dưỡng</h3>
+        <p>Tiếp nhận, kiểm tra và duyệt suất ăn trước khi đưa xuống bếp.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s3">
+        <div class="num">3</div>
+        <h3>Sản xuất</h3>
+        <p>Chia theo bếp và cữ ăn để tổ chức nấu và giao đúng số lượng.</p>
+      </div>
+    </div>
+    <div class="progress" style="width:33.3%"></div>
+    <div class="foot"><span>Tổng quan</span><span class="pageno">02 / 06</span></div>
+  </section>
+
+  <!-- 3. KHOA LAM SANG -->
+  <section class="slide">
+    <div class="screenhead">
+      <span class="bignum">1</span>
+      <div>
+        <div class="kicker"><span class="dot"></span> Màn hình 1</div>
+        <h2>Khoa lâm sàng — nơi khởi tạo suất ăn</h2>
+      </div>
+    </div>
+    <div class="body">
+      <div class="col">
+        <div class="panel">
+          <h4><span class="ic">🍚</span> Đăng ký theo bệnh lý</h4>
+          <p style="color:var(--muted);font-size:15.5px;margin-bottom:12px">Chọn món theo từng cữ ăn của bệnh nhân.</p>
+          <div class="tags">
+            <span class="mtag">Cơm</span><span class="mtag">Cháo</span>
+            <span class="mtag">Sữa thường</span><span class="mtag">Sữa đặc trị</span>
+            <span class="mtag">Sonde</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h4><span class="ic">🛎️</span> Đăng ký dịch vụ</h4>
+          <ul><li>Suất <b>cơm / cháo dịch vụ</b> giao tận giường theo yêu cầu.</li></ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel" style="flex:1">
+          <h4><span class="ic">⚙️</span> Hệ thống làm gì</h4>
+          <ul>
+            <li>Gắn suất theo <b>chế độ bệnh, mức độ bệnh, nhóm tuổi</b> → tự sinh mã chế độ chuẩn.</li>
+            <li>Phân biệt rõ bệnh nhân <b>bệnh lý</b> và <b>dịch vụ</b>.</li>
+            <li>Tab <b>"Gửi dinh dưỡng"</b> để chốt và đẩy danh sách lên Khoa Dinh dưỡng.</li>
+          </ul>
+          <span class="role">Người dùng: điều dưỡng / nhân viên khoa</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress" style="width:50%"></div>
+    <div class="foot"><span>Khoa lâm sàng</span><span class="pageno">03 / 06</span></div>
+  </section>
+
+  <!-- 4. KHOA DINH DUONG -->
+  <section class="slide">
+    <div class="screenhead">
+      <span class="bignum">2</span>
+      <div>
+        <div class="kicker"><span class="dot"></span> Màn hình 2</div>
+        <h2>Khoa dinh dưỡng — đầu mối kiểm soát</h2>
+      </div>
+    </div>
+    <div class="body">
+      <div class="col">
+        <div class="panel" style="flex:1">
+          <h4><span class="ic">📥</span> Tiếp nhận & kiểm tra</h4>
+          <ul>
+            <li>Nhận tập trung danh sách suất ăn từ <b>tất cả các khoa</b> gửi lên.</li>
+            <li>Hiển thị rõ <b>mã chế độ, loại món, số lượng theo cữ</b>.</li>
+            <li>Đối chiếu trước khi đưa xuống bếp — tránh sai sót đầu nguồn.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel" style="flex:1">
+          <h4><span class="ic">✅</span> Quyết định</h4>
+          <ul>
+            <li><b>Duyệt</b> → đẩy suất xuống màn Sản xuất.</li>
+            <li><b>Từ chối</b> → trả lại khoa để chỉnh sửa, có lý do.</li>
+          </ul>
+          <span class="role">Người dùng: cán bộ Khoa Dinh dưỡng</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress" style="width:66.6%"></div>
+    <div class="foot"><span>Khoa dinh dưỡng</span><span class="pageno">04 / 06</span></div>
+  </section>
+
+  <!-- 5. SAN XUAT -->
+  <section class="slide">
+    <div class="screenhead">
+      <span class="bignum">3</span>
+      <div>
+        <div class="kicker"><span class="dot"></span> Màn hình 3</div>
+        <h2>Sản xuất — bảng điều hành bếp</h2>
+      </div>
+    </div>
+    <div class="body">
+      <div class="col">
+        <div class="panel" style="flex:1">
+          <h4><span class="ic">📋</span> Nhận lệnh nấu</h4>
+          <ul>
+            <li>Chỉ hiển thị các suất <b>đã được Khoa Dinh dưỡng duyệt</b>.</li>
+            <li>Gom theo <b>cữ ăn: Sáng – Trưa – Chiều</b> để lên kế hoạch nấu.</li>
+            <li>Hiển thị mã chế độ và số lượng chính xác cho từng bếp.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel" style="flex:1">
+          <h4><span class="ic">🍳</span> Chia theo 3 bếp</h4>
+          <div class="kits">
+            <div class="kit"><div class="e">🍱</div><b>Bếp dịch vụ</b><span>Cơm / cháo DV</span></div>
+            <div class="kit"><div class="e">🥣</div><b>Bếp bệnh lý</b><span>Cơm / cháo BL</span></div>
+            <div class="kit"><div class="e">🍼</div><b>Sữa – Súp / Sonde</b><span>Theo chỉ định</span></div>
+          </div>
+          <span class="role" style="margin-top:14px">Người dùng: tổ bếp / sản xuất</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress" style="width:83.3%"></div>
+    <div class="foot"><span>Sản xuất</span><span class="pageno">05 / 06</span></div>
+  </section>
+
+  <!-- 6. CLOSING -->
+  <section class="slide close">
+    <div class="kicker"><span class="dot"></span> Giá trị mang lại</div>
+    <h2>Một hệ thống — chính xác, minh bạch, kiểm soát được</h2>
+    <div class="vals">
+      <div class="val"><div class="e">🎯</div><b>Giảm sai sót</b><p>Thông tin nhập một lần, đi suốt luồng, không chép tay nhiều khâu.</p></div>
+      <div class="val"><div class="e">🔎</div><b>Minh bạch số liệu</b><p>Số suất theo khoa, theo cữ, theo bếp rõ ràng và truy vết được.</p></div>
+      <div class="val"><div class="e">⏱️</div><b>Kiểm soát thời gian</b><p>Duyệt và sản xuất bám sát giờ khóa từng cữ ăn.</p></div>
+      <div class="val"><div class="e">📈</div><b>Sẵn sàng mở rộng</b><p>Nền tảng dữ liệu chung, hướng tới kết nối HIS và báo cáo tự động.</p></div>
+    </div>
+    <div class="progress" style="width:100%"></div>
+    <div class="foot"><span>BV Nhi Đồng 1 · 2026</span><span class="pageno">06 / 06</span></div>
+  </section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="Trước">‹</button>
+  <button id="next" aria-label="Sau">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){
+    i=(n+slides.length)%slides.length;
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  }
+  document.getElementById('next').onclick=()=>show(i+1);
+  document.getElementById('prev').onclick=()=>show(i-1);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ')show(i+1);
+    if(e.key==='ArrowLeft'||e.key==='PageUp')show(i-1);
+    if(e.key==='Home')show(0);
+    if(e.key==='End')show(slides.length-1);
+  });
+</script>
+</body>
+</html>

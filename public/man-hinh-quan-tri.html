@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quản trị tổng — Hệ thống suất ăn Nhi Đồng 1</title>
+<style>
+  :root{
+    --bg:#F0F4F8;--white:#FFFFFF;--border:#DDE3EA;--borderLight:#EEF2F5;
+    --header:#0D1F2D;--primary:#0E6BA8;--primaryLight:#E6F2FA;--primaryMid:#C2DCF0;
+    --green:#0E8A5F;--greenLight:#E8F5EE;--orange:#E8650A;--orangeLight:#FFF0E6;
+    --red:#C0392B;--redLight:#FDECEA;--yellow:#9A7200;--yellowLight:#FFFBEA;
+    --gray:#546E7A;--grayLight:#EEF2F4;--grayMid:#8A9BB0;
+    --text:#0D1F2D;--textMid:#4A5568;--textLight:#8A9BB0;--dimBg:#F4F6F8;--dimTx:#AEB8C4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}
+  /* layout */
+  .app{display:flex;min-height:100vh}
+  .side{width:212px;flex:none;background:var(--header);color:#cfe0ec;padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto}
+  .side .brand .k{font-size:10px;font-weight:700;color:#5B8FAA;letter-spacing:1px}
+  .side .brand .t{font-size:15px;font-weight:800;color:#fff;margin:2px 0 14px;line-height:1.25}
+  .nav{display:flex;flex-direction:column;gap:3px}
+  .navi{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:#9fb6c8}
+  .navi .ic{width:20px;text-align:center;font-size:14px}
+  .navi small{display:block;font-size:10px;font-weight:500;color:#6f8aa0}
+  .navi:hover{background:rgba(255,255,255,.06)}
+  .navi.on{background:var(--primary);color:#fff}
+  .navi.on small{color:#cfe6f6}
+  .side .who{margin-top:18px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px;font-size:11px;color:#8fa9bc}
+  .side .who b{color:#fff;display:block;font-size:12px}
+  .main{flex:1;min-width:0}
+  .top{background:#fff;border-bottom:1.5px solid var(--border);padding:13px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30}
+  .top .ti{font-size:17px;font-weight:800}
+  .top .ds{font-size:11.5px;color:var(--textLight);margin-top:1px}
+  .wrap{padding:18px 22px;max-width:1280px}
+  /* generic */
+  .card{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:15px 17px;margin-bottom:14px}
+  .card h3{margin:0 0 12px;font-size:13.5px;font-weight:800}
+  .row{display:flex;align-items:center}.between{justify-content:space-between}
+  .gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap14{gap:14px}.wrapf{flex-wrap:wrap}
+  .sub{font-size:11px;color:var(--textLight)}
+  .pill{font-size:11px;font-weight:700;color:var(--primary);background:var(--primaryLight);border-radius:6px;padding:2px 8px;display:inline-block}
+  .badge{font-size:10px;font-weight:700;border-radius:99px;padding:3px 9px;display:inline-block}
+  button{font-family:inherit;cursor:pointer}
+  .b{padding:8px 13px;border-radius:8px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--textMid)}
+  .b.out{border-color:var(--primary);color:var(--primary)}
+  .b.pri{border:none;background:var(--primary);color:#fff}
+  .b.grn{border:none;background:var(--green);color:#fff}
+  .b.red{border-color:var(--red);color:var(--red);background:var(--redLight)}
+  .b.sm{padding:5px 10px;font-size:11px}
+  .tool{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px;align-items:center}
+  .tool input,.tool select{font-family:inherit;font-size:12px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  .seg{display:inline-flex;border:1.5px solid var(--border);border-radius:9px;overflow:hidden}
+  .seg button{border:none;background:#fff;padding:7px 13px;font-size:12px;font-weight:700;color:var(--textMid);border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:none}
+  .seg button.on{background:var(--primary);color:#fff}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.t th{text-align:left;color:var(--textLight);font-weight:700;font-size:11px;padding:8px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+  table.t td{padding:9px 10px;border-bottom:1px solid var(--borderLight);vertical-align:middle}
+  table.t tr:hover td{background:#FAFCFE}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .strong{font-weight:800}
+  /* dashboard funnel */
+  .funnel{display:flex;gap:0;align-items:stretch;flex-wrap:wrap}
+  .fstep{flex:1;min-width:150px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:13px 15px;position:relative}
+  .fstep+.fstep{margin-left:18px}
+  .fstep .arr{position:absolute;left:-15px;top:50%;transform:translateY(-50%);color:var(--grayMid);font-size:16px;font-weight:800}
+  .fstep .fl{font-size:11px;color:var(--textLight);font-weight:700}
+  .fstep .fn{font-size:27px;font-weight:800;margin-top:3px;line-height:1}
+  .fstep .fd{font-size:11px;margin-top:5px}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap}
+  .kpi{flex:1;min-width:150px;border:1.5px solid var(--border);border-radius:12px;padding:13px 15px;background:#fff}
+  .kpi .kl{font-size:11px;color:var(--textLight);font-weight:700}
+  .kpi .kv{font-size:24px;font-weight:800;margin-top:3px}
+  .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;margin-bottom:8px;font-size:12.5px;border:1.5px solid}
+  .alert .ai{font-size:15px;line-height:1}
+  .a-red{background:var(--redLight);border-color:#F3C9C4}
+  .a-org{background:var(--orangeLight);border-color:#FAD7BC}
+  .a-yel{background:var(--yellowLight);border-color:#EFE2A8}
+  .chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;margin:0 4px 4px 0}
+  .chip .n{background:#fff;border-radius:4px;padding:0 5px}
+  .bp-dv{background:var(--primaryLight);color:var(--primary)}
+  .bp-bl{background:var(--greenLight);color:var(--green)}
+  .bp-ss{background:var(--orangeLight);color:var(--orange)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+  .note{font-size:11.5px;color:var(--textMid);background:var(--primaryLight);border:1px solid var(--primaryMid);border-radius:9px;padding:9px 12px;margin-bottom:13px}
+  .ro{background:var(--grayLight);color:var(--gray);border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:700;display:inline-block;margin:2px 3px 2px 0}
+  .lockbadge{background:var(--grayLight);color:var(--gray);border:1px dashed var(--grayMid);border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:700}
+  .bar{height:7px;border-radius:4px;background:var(--grayLight);overflow:hidden;min-width:90px}
+  .bar i{display:block;height:100%;border-radius:4px}
+  .muted{text-align:center;padding:34px 0;color:var(--textLight)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:11px 22px;border-radius:24px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:200}
+  @media(max-width:860px){.side{width:60px}.side .brand .t,.navi small,.side .who,.navi span.lab{display:none}.navi{justify-content:center}}
+</style>
+</head>
+<body>
+<div id="app" class="app"></div>
+<div id="toastHost"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+"use strict";
+
+/* ====================== KẾT NỐI SUPABASE ====================== */
+var SB = { url:"https://crqeixavuazkpczzahxe.supabase.co", anonKey:"sb_publishable_z4W6NoLBqDapelJ8C7Ov_g_u0SZlxwm" };
+var _client=null;
+function configured(){ return !!(SB.url && SB.anonKey && SB.url.indexOf("http")===0 && SB.url.indexOf("DAN_")<0 && SB.anonKey.indexOf("DAN_")<0); }
+function getClient(){
+  if(_client) return _client;
+  if(!configured()) return null;
+  if(!window.supabase || !window.supabase.createClient){ console.error("[admin] Chưa nạp supabase-js (kiểm tra CDN)."); return null; }
+  _client = window.supabase.createClient(SB.url, SB.anonKey);
+  return _client;
+}
+
+/* ====================== DỮ LIỆU NỀN (mock) ====================== */
+var KHOA=["Nhi Tổng hợp","Tiêu hoá Nhi","Hô hấp Nhi","Sơ sinh","Sơ sinh non tháng","Ngoại Nhi","Chấn thương Nhi","Tim mạch Nhi","Thận - Nội tiết","Thần kinh Nhi","Huyết học","Ung bướu Nhi","Nhiễm","Hồi sức tích cực","Cấp cứu","Bỏng","Mắt","Tai Mũi Họng","Răng Hàm Mặt","Da liễu","Nội tiết Nhi","Phục hồi chức năng","Ngoại Thận-Niệu","Ngoại Thần kinh","Tim mạch can thiệp"];
+var BO_PHAN=[
+  {id:"bep_dv",ten:"Bếp phòng dịch vụ",cls:"bp-dv",icon:"🍚"},
+  {id:"bep_bl",ten:"Bếp cơm bệnh lý",cls:"bp-bl",icon:"🥣"},
+  {id:"sua_soup",ten:"Phòng sữa - soup",cls:"bp-ss",icon:"🍼"}
+];
+var CU=["03:00","06:00","09:00","11:00","12:00","15:00","16:00","17:00","18:00","21:00","00:00"];
+var VAI_TRO=[
+  {id:"khoa",ten:"Khoa lâm sàng"},{id:"kdd",ten:"KDD"},
+  {id:"bep_dv",ten:"Bếp dịch vụ"},{id:"bep_bl",ten:"Bếp bệnh lý"},
+  {id:"sua_soup",ten:"Phòng sữa-soup"},{id:"giao",ten:"Người giao"},{id:"admin",ten:"Admin"}
+];
+
+/* số liệu ngày (mock) */
+var FUNNEL=[
+  {l:"Đăng ký",n:1240,d:"khoa lâm sàng gửi",c:"var(--gray)"},
+  {l:"Đã duyệt / gửi",n:1182,d:"KDD đã chuyển SX",c:"var(--primary)"},
+  {l:"Đã sản xuất",n:1108,d:"bếp báo xong",c:"var(--orange)"},
+  {l:"Đã giao",n:1061,d:"giao tới giường",c:"var(--green)"}
+];
+var KPI=[
+  {l:"Tỷ lệ giao thành công",v:"96,2%",c:"var(--green)"},
+  {l:"Tỷ lệ từ chối / trả về",v:"4,7%",c:"var(--orange)"},
+  {l:"Suất trả về bếp",v:"41",c:"var(--red)"}
+];
+/* cữ x bộ phận (mock các cữ chính trong ngày) */
+var CU_BP=[
+  {cu:"06:00",dk:402,bep_dv:96,bep_bl:74,sua_soup:232,giao:"388/402",st:"done"},
+  {cu:"11:00",dk:357,bep_dv:88,bep_bl:69,sua_soup:200,giao:"đang giao",st:"run"},
+  {cu:"12:00",dk:128,bep_dv:0,bep_bl:0,sua_soup:128,giao:"chờ SX",st:"wait"},
+  {cu:"15:00",dk:120,bep_dv:0,bep_bl:0,sua_soup:120,giao:"-",st:"wait"},
+  {cu:"17:00",dk:171,bep_dv:92,bep_bl:79,sua_soup:0,giao:"-",st:"wait"},
+  {cu:"18:00",dk:118,bep_dv:0,bep_bl:0,sua_soup:118,giao:"-",st:"wait"}
+];
+var ALERTS=[
+  {t:"red",ic:"⏰",x:"Cữ 11:00 — khoa <b>Hồi sức tích cực</b> đã quá giờ khóa Trưa, còn 6 suất chưa gửi."},
+  {t:"org",ic:"🚚",x:"Giao thất bại cao ở khoa <b>Nhiễm</b>: 5/22 suất cữ 11:00 (người nhà vắng) — đã đem về bếp."},
+  {t:"yel",ic:"↩️",x:"KDD trả về <b>9 BN</b> trong cữ 11:00 (đổi chế độ / thiếu mã bệnh) — chờ khoa sửa."},
+  {t:"yel",ic:"➕",x:"Bổ sung bất thường: khoa <b>Ung bướu Nhi</b> +14 suất sữa ĐB cữ 12:00 so với trung bình."}
+];
+
+/* báo cáo sản lượng (mock theo bộ phận) */
+var SL_COMCHAO=[
+  {bp:"Bếp phòng dịch vụ",com:268,chao:121,t:389},
+  {bp:"Bếp cơm bệnh lý",com:214,chao:96,t:310}
+];
+var SL_SUASOUP=[
+  {ten:"Sữa thường (BT)",sl:486},{ten:"Sữa đặc biệt (ĐB)",sl:262},{ten:"Soup sonde",sl:158}
+];
+/* nguyên liệu — cột đã chốt với chị */
+var NL_SUA=[
+  {ma:"SUA006",ten:"Sữa công thức số 1",ml:24800,tp:100,bot:13,need:3224},
+  {ma:"SUA013",ten:"Sữa tăng năng lượng",ml:18600,tp:100,bot:15,need:2790},
+  {ma:"SUA023",ten:"Sữa thuỷ phân (TH)",ml:9200,tp:100,bot:14,need:1288},
+  {ma:"SUA021",ten:"Sữa gan mật (GM)",ml:5400,tp:100,bot:16,need:864},
+  {ma:"SUA020",ten:"Sữa thận (TN)",ml:4100,tp:100,bot:15,need:615}
+];
+var NL_SOUP=[
+  {ma:"SS-GA",ten:"Soup gà",sl:62,nl:"Gà 80g · Gạo 40g · Rau 30g",tong:"Gà 4,96kg · Gạo 2,48kg · Rau 1,86kg"},
+  {ma:"SS-HEO",ten:"Soup heo",sl:41,nl:"Heo 80g · Gạo 40g · Rau 30g",tong:"Heo 3,28kg · Gạo 1,64kg · Rau 1,23kg"},
+  {ma:"SS-BO",ten:"Soup bò",sl:33,nl:"Bò 80g · Gạo 40g · Rau 30g",tong:"Bò 2,64kg · Gạo 1,32kg · Rau 0,99kg"},
+  {ma:"SS-BS",ten:"Soup bột sữa",sl:22,nl:"Bột sữa 50g · Bột năng 20g",tong:"Bột sữa 1,10kg · Bột năng 0,44kg"}
+];
+var GIAO_RP=[
+  {khoa:"Nhi Tổng hợp",ok:78,fail:2,ly:"Người nhà vắng",xl:"Gửi ĐD khoa"},
+  {khoa:"Nhiễm",ok:64,fail:5,ly:"Người nhà vắng",xl:"Đem về bếp"},
+  {khoa:"Hồi sức tích cực",ok:41,fail:1,ly:"BN chuyển khoa",xl:"Gửi ĐD khoa"},
+  {khoa:"Tiêu hoá Nhi",ok:55,fail:3,ly:"BN nhịn ăn (CĐ)",xl:"Đem về bếp"},
+  {khoa:"Ung bướu Nhi",ok:47,fail:0,ly:"-",xl:"-"}
+];
+
+/* người dùng (mock) */
+var USERS=[
+  {ten:"Nguyễn T. Lan",vt:"admin",bp:"Toàn hệ thống",on:true},
+  {ten:"Trần V. Hùng",vt:"kdd",bp:"Khoa Dinh Dưỡng",on:true},
+  {ten:"Phạm T. Mai",vt:"bep_dv",bp:"Bếp dịch vụ",on:true},
+  {ten:"Lê V. Sơn",vt:"bep_bl",bp:"Bếp bệnh lý",on:true},
+  {ten:"Võ T. Hà",vt:"sua_soup",bp:"Phòng sữa-soup",on:true},
+  {ten:"Đỗ V. Nam",vt:"giao",bp:"Tổ giao — khu A",on:true},
+  {ten:"Bùi T. Yến",vt:"giao",bp:"Tổ giao — khu B",on:true},
+  {ten:"Hoàng V. Tú",vt:"khoa",bp:"Nhi Tổng hợp",on:true},
+  {ten:"Đặng T. Thu",vt:"khoa",bp:"Tiêu hoá Nhi",on:false},
+  {ten:"Ngô V. Khoa",vt:"admin",bp:"Bếp dịch vụ (Admin phụ)",on:true}
+];
+
+/* dữ liệu nền tabs */
+var DN_CU=[
+  {loai:"Sữa (BT + ĐB)",so:8,gio:"03:00·06:00·09:00·12:00·15:00·18:00·21:00·00:00"},
+  {loai:"Soup sonde",so:4,gio:"06:00·11:00·16:00·21:00"},
+  {loai:"Cơm / Cháo",so:3,gio:"06:00·11:00·17:00"}
+];
+var DN_KHOA_LOCK=[
+  {buoi:"Sáng",lock:"05:00"},{buoi:"Trưa",lock:"10:00"},{buoi:"Chiều - Tối",lock:"16:00"}
+];
+var DN_BENH=[["BT","Bình thường"],["TH","Tiêu hoá"],["GM","Gan mật"],["TN","Thận niệu"],["SD","Suy dinh dưỡng"],["DD","Đái tháo đường"],["NK","Nhiễm khuẩn"],["TM","Tim mạch"]];
+var DN_TUOI=["Dưới 6 tháng","6–12 tháng","1–3 tuổi","4–6 tuổi","7–15 tuổi"];
+
+/* giám sát: trạng thái cữ xuyên bộ phận + audit log */
+var GIAMSAT=[
+  {cu:"06:00",duyet:"✓ 06:12",sx:"✓ 06:40",giao:"✓ 07:35",st:"done"},
+  {cu:"11:00",duyet:"✓ 10:48",sx:"✓ 11:20",giao:"⏳ đang",st:"run"},
+  {cu:"12:00",duyet:"✓ 11:30",sx:"⏳ đang",giao:"—",st:"run"},
+  {cu:"15:00",duyet:"— chờ",sx:"—",giao:"—",st:"wait"},
+  {cu:"17:00",duyet:"— chờ",sx:"—",giao:"—",st:"wait"}
+];
+var AUDIT=[
+  {t:"11:20",ai:"Phạm T. Mai",vt:"Bếp dịch vụ",hd:"Báo sản xuất xong",cu:"11:00"},
+  {t:"10:48",ai:"Trần V. Hùng",vt:"KDD",hd:"Gửi sản xuất",cu:"11:00"},
+  {t:"10:42",ai:"Trần V. Hùng",vt:"KDD",hd:"Duyệt cữ",cu:"11:00"},
+  {t:"07:35",ai:"Đỗ V. Nam",vt:"Người giao",hd:"Hoàn tất giao",cu:"06:00"},
+  {t:"06:40",ai:"Võ T. Hà",vt:"Phòng sữa-soup",hd:"Báo sản xuất xong",cu:"06:00"},
+  {t:"06:12",ai:"Trần V. Hùng",vt:"KDD",hd:"Duyệt + gửi",cu:"06:00"}
+];
+
+/* hiệu suất người giao */
+var GIAO_KPI=[
+  {ten:"Đỗ V. Nam",khu:"Khu A (khoa 1–8)",giao:204,ok:201,fail:3,back:1,rate:98.5},
+  {ten:"Bùi T. Yến",khu:"Khu B (khoa 9–16)",giao:188,ok:179,fail:9,back:6,rate:95.2},
+  {ten:"Lý V. Phát",khu:"Khu C (khoa 17–25)",giao:176,ok:170,fail:6,back:4,rate:96.6},
+  {ten:"Trương T. Kim",khu:"Khu A (ca chiều)",giao:142,ok:139,fail:3,back:2,rate:97.9},
+  {ten:"Phan V. Lộc",khu:"Khu B (ca chiều)",giao:151,ok:142,fail:9,back:7,rate:94.0}
+];
+
+/* ====================== HELPERS ====================== */
+function el(tag,attrs,html){var e=document.createElement(tag);if(attrs)for(var k in attrs){if(k==="class")e.className=attrs[k];else e.setAttribute(k,attrs[k]);}if(html!=null)e.innerHTML=html;return e;}
+function bpName(id){for(var i=0;i<BO_PHAN.length;i++)if(BO_PHAN[i].id===id)return BO_PHAN[i].ten;return id;}
+function bpCls(id){for(var i=0;i<BO_PHAN.length;i++)if(BO_PHAN[i].id===id)return BO_PHAN[i].cls;return "";}
+function vtName(id){for(var i=0;i<VAI_TRO.length;i++)if(VAI_TRO[i].id===id)return VAI_TRO[i].ten;return id;}
+function nf(n){return (n+"").replace(/\B(?=(\d{3})+(?!\d))/g,".");}
+function toast(msg){var h=document.getElementById("toastHost");h.innerHTML="";var t=el("div",{class:"toast"},msg);h.appendChild(t);setTimeout(function(){t.remove();},2200);}
+/* nhãn nhỏ đánh dấu dữ liệu mẫu / dữ liệu thật cho từng khối */
+function tagMock(){return '<span class="badge" style="background:var(--yellowLight);color:var(--yellow)">⚪ dữ liệu mẫu</span>';}
+function tagDb(){return '<span class="badge" style="background:var(--greenLight);color:var(--green)">🟢 thật</span>';}
+/* banner đầu mỗi module: cho biết module đang đọc thật hay mẫu */
+function dataBanner(mod){
+  var kind = state.src==="db" ? MOD_DATA[mod] : (state.src==="loading" ? "loading" : "mock");
+  var txt, cls;
+  if(kind==="loading"){ cls="note"; txt='⏳ Đang tải dữ liệu từ Supabase…'; }
+  else if(kind==="db"){ cls="note"; txt='🟢 <b>Số liệu thật</b> từ Supabase'+(state.day?' — ngày '+state.day:'')+'.'; }
+  else if(kind==="partial"){ cls="note"; txt='🟢 <b>Một phần số liệu thật</b> từ Supabase'+(state.day?' (ngày '+state.day+')':'')+'. Khối nào còn dùng số giả đã gắn nhãn ⚪ <b>dữ liệu mẫu</b>.'; }
+  else { cls="alert a-yel"; txt='⚠ Module này <b>chưa có bảng dữ liệu</b> trong Supabase nên đang hiển thị <b>dữ liệu mẫu</b>. Sẽ nối sau khi tạo bảng (người dùng / nhật ký / giao hàng).'; }
+  return el("div",{class:cls,style:"margin-bottom:14px"}, txt);
+}
+
+/* ====================== STATE ====================== */
+var state={mod:"A",rpTab:"sl",dnTab:"khoa",src:"loading",day:null,session:null,me:null,cQ:"",cVt:""};
+/* Nguồn dữ liệu từng module: db=thật | partial=một phần thật | mock=dữ liệu mẫu (chờ tạo bảng) */
+var MOD_DATA={A:"db",B:"partial",C:"db",D:"partial",E:"mock",F:"partial",G:"db"};
+
+/* Cache dữ liệu nối từ phần vai trò/người dùng */
+var VAI_TRO_DB=[], USERS_DB=[], ALLOW_DB=[], KHUVUC_DB=[], KHOA_DB2=[], PCG_DB=[], BOPHAN_DB=[];
+function vtNameDb(ma){for(var i=0;i<VAI_TRO_DB.length;i++)if(VAI_TRO_DB[i].ma===ma)return VAI_TRO_DB[i].ten;return ma||"—";}
+
+var MODULES=[
+  {id:"A",ic:"📊",ten:"Dashboard",sub:"Vận hành theo ngày"},
+  {id:"B",ic:"📑",ten:"Báo cáo",sub:"Xuất Excel"},
+  {id:"C",ic:"👥",ten:"Người dùng",sub:"Phân quyền"},
+  {id:"D",ic:"🗂️",ten:"Dữ liệu nền",sub:"Master data"},
+  {id:"E",ic:"🛰️",ten:"Giám sát",sub:"Nhật ký mốc chính"},
+  {id:"F",ic:"🚚",ten:"Nhân viên giao",sub:"Phân công · hiệu suất"},
+  {id:"G",ic:"🔑",ten:"Vai trò",sub:"Danh mục phân quyền"}
+];
+var MOD_TITLE={
+  A:["Dashboard vận hành","Toàn cảnh luồng suất ăn trong ngày — cập nhật theo thời gian thực"],
+  B:["Báo cáo & xuất Excel","Sản lượng · Nguyên liệu tiêu thụ · Giao hàng"],
+  C:["Người dùng & phân quyền","Tài khoản, vai trò và bộ phận phụ trách"],
+  D:["Dữ liệu nền (master data)","Chỉ Admin tổng thao tác"],
+  E:["Giám sát & nhật ký","Trạng thái từng cữ xuyên bộ phận + audit log mốc chính"],
+  F:["Nhân viên giao","Phân công theo ngày/ca + hiệu suất giao"],
+  G:["Danh mục vai trò","7 vai trò & phân quyền của hệ thống"]
+};
+
+/* ====================== RENDER SHELL ====================== */
+function render(){
+  var app=document.getElementById("app");
+  app.innerHTML="";
+  /* sidebar */
+  var side=el("div",{class:"side"});
+  side.appendChild(el("div",{class:"brand"},'<div class="k">QUẢN TRỊ TỔNG · v1-DB</div><div class="t">Hệ thống suất ăn<br>Nhi Đồng 1</div>'));
+  var nav=el("div",{class:"nav"});
+  MODULES.forEach(function(m){
+    var n=el("div",{class:"navi"+(state.mod===m.id?" on":"")});
+    n.innerHTML='<span class="ic">'+m.ic+'</span><span class="lab">'+m.ten+'<small>'+m.sub+'</small></span>';
+    n.onclick=function(){state.mod=m.id;render();};
+    nav.appendChild(n);
+  });
+  side.appendChild(nav);
+  var meName = (state.me&&(state.me.ho_ten||state.me.email)) || (state.session&&state.session.user&&state.session.user.email) || "—";
+  var meRole = state.me ? (vtNameDb(state.me.vai_tro)+(state.me.cap_quan_tri?" · "+(state.me.cap_quan_tri==="tong"?"Admin tổng":"Admin phụ"):"")) : "";
+  var who=el("div",{class:"who"},'Đang đăng nhập<b>'+meName+'</b>'+meRole);
+  var lo=el("button",{class:"b sm",style:"margin-top:8px;width:100%"},"Đăng xuất");
+  lo.onclick=doLogout;
+  who.appendChild(lo);
+  side.appendChild(who);
+  app.appendChild(side);
+  /* main */
+  var main=el("div",{class:"main"});
+  var tt=MOD_TITLE[state.mod];
+  var top=el("div",{class:"top"});
+  var srcBadge = state.src==="db"
+      ? '<span class="badge" style="background:var(--greenLight);color:var(--green)">🟢 SUPABASE'+(state.day?' · '+state.day:'')+'</span>'
+      : state.src==="loading"
+        ? '<span class="badge" style="background:var(--grayLight);color:var(--gray)">⏳ Đang tải…</span>'
+        : '<span class="badge" style="background:var(--yellowLight);color:var(--yellow)">⚪ Dữ liệu mẫu</span>';
+  top.innerHTML='<div><div class="ti">'+tt[0]+'</div><div class="ds">'+tt[1]+'</div></div>'+
+    '<div class="row gap8">'+srcBadge+'<button class="b out sm" id="reload">🔄 Tải lại</button></div>';
+  main.appendChild(top);
+  top.querySelector("#reload").onclick=function(){ reloadAll(); };
+  var wrap=el("div",{class:"wrap"});
+  wrap.appendChild(dataBanner(state.mod));
+  ({A:viewA,B:viewB,C:viewC,D:viewD,E:viewE,F:viewF,G:viewG})[state.mod](wrap);
+  main.appendChild(wrap);
+  app.appendChild(main);
+}
+
+/* ====================== A — DASHBOARD ====================== */
+function viewA(w){
+  w.appendChild(el("div",{class:"note"},'⚙️ <b>Một nguồn dữ liệu chung</b> với mọi màn (khoa · KDD · bếp · giao) → số liệu khớp tức thời. Admin phụ chỉ thấy số liệu bộ phận mình.'));
+  // funnel
+  var c1=el("div",{class:"card"});
+  c1.appendChild(el("h3",null,"Luồng trong ngày"));
+  var fn=el("div",{class:"funnel"});
+  FUNNEL.forEach(function(s,i){
+    var f=el("div",{class:"fstep"});
+    f.innerHTML=(i>0?'<div class="arr">›</div>':'')+'<div class="fl">'+(i+1)+'. '+s.l+'</div><div class="fn" style="color:'+s.c+'">'+(s.n==null?'—':nf(s.n))+'</div><div class="fd sub">'+s.d+'</div>';
+    fn.appendChild(f);
+  });
+  c1.appendChild(fn);
+  w.appendChild(c1);
+  // kpi
+  var c2=el("div",{class:"card"});
+  c2.appendChild(el("h3",null,"KPI nhanh"));
+  var kp=el("div",{class:"kpis"});
+  KPI.forEach(function(k){kp.appendChild(el("div",{class:"kpi"},'<div class="kl">'+k.l+'</div><div class="kv" style="color:'+k.c+'">'+k.v+'</div>'));});
+  c2.appendChild(kp);
+  w.appendChild(c2);
+  // bảng cữ x bộ phận
+  var c3=el("div",{class:"card"});
+  c3.appendChild(el("div",{class:"row between"},'<h3 style="margin:0">Tổng suất theo cữ × bộ phận</h3>'));
+  var tbl=el("table",{class:"t"});
+  tbl.innerHTML='<thead><tr><th>Cữ</th><th class="num">Đăng ký</th><th class="num">Bếp DV</th><th class="num">Bếp BL</th><th class="num">Sữa-Soup</th><th>Giao hàng</th></tr></thead>';
+  var tb=el("tbody");
+  CU_BP.forEach(function(r){
+    var gst=r.st==="done"?'style="color:var(--green);font-weight:700"':r.st==="run"?'style="color:var(--orange);font-weight:700"':'class="sub"';
+    var tr=el("tr",null,'<td class="strong">'+r.cu+'</td><td class="num strong">'+r.dk+'</td><td class="num">'+(r.bep_dv||'·')+'</td><td class="num">'+(r.bep_bl||'·')+'</td><td class="num">'+(r.sua_soup||'·')+'</td><td '+gst+'>'+r.giao+'</td>');
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+  c3.appendChild(tbl);
+  w.appendChild(c3);
+  // cảnh báo
+  var c4=el("div",{class:"card"});
+  c4.appendChild(el("h3",null,"Cảnh báo cần chú ý ("+ALERTS.length+")"));
+  if(!ALERTS.length){ c4.appendChild(el("div",{class:"muted"},"Không có cảnh báo.")); }
+  ALERTS.forEach(function(a){
+    var cls=a.t==="red"?"a-red":a.t==="org"?"a-org":"a-yel";
+    c4.appendChild(el("div",{class:"alert "+cls},'<span class="ai">'+a.ic+'</span><span>'+a.x+'</span>'));
+  });
+  w.appendChild(c4);
+}
+
+/* ====================== B — BÁO CÁO ====================== */
+function viewB(w){
+  var bar=el("div",{class:"tool"});
+  bar.innerHTML=
+    '<div class="seg" id="rpseg">'+
+      '<button data-k="sl"'+(state.rpTab==="sl"?' class="on"':'')+'>Sản lượng</button>'+
+      '<button data-k="nl"'+(state.rpTab==="nl"?' class="on"':'')+'>Nguyên liệu</button>'+
+      '<button data-k="gh"'+(state.rpTab==="gh"?' class="on"':'')+'>Giao hàng</button>'+
+    '</div>'+
+    '<select><option>Theo ngày</option><option>Theo tuần</option><option>Theo tháng</option></select>'+
+    '<input type="date" value="2026-06-28">'+
+    '<select><option>Tất cả bộ phận</option><option>Bếp dịch vụ</option><option>Bếp bệnh lý</option><option>Phòng sữa-soup</option></select>'+
+    '<select><option>Tất cả khoa</option><option>Nhi Tổng hợp</option><option>Nhiễm</option></select>'+
+    '<button class="b grn" id="xls">⬇ Xuất Excel (.xlsx)</button>';
+  w.appendChild(bar);
+  bar.querySelectorAll("#rpseg button").forEach(function(b){b.onclick=function(){state.rpTab=b.getAttribute("data-k");render();};});
+  bar.querySelector("#xls").onclick=function(){toast("Đã xuất báo cáo Excel (mock)");};
+
+  if(state.rpTab==="sl"){
+    var c=el("div",{class:"card"});
+    c.appendChild(el("h3",null,"Sản lượng — báo cáo tách 2 bên"));
+    c.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},"① Cơm-Cháo (Bếp DV + Bếp bệnh lý) · ② Sữa-Soup (Phòng sữa-soup)"));
+    var t1=el("table",{class:"t"});
+    t1.innerHTML='<thead><tr><th>① Cơm-Cháo · Bộ phận '+(state.src==="db"?tagDb():"")+'</th><th class="num">Cơm</th><th class="num">Cháo</th><th class="num">Tổng</th></tr></thead>';
+    var b1=el("tbody");var tc=0,tch=0;
+    SL_COMCHAO.forEach(function(r){b1.appendChild(el("tr",null,'<td>'+r.bp+'</td><td class="num">'+r.com+'</td><td class="num">'+r.chao+'</td><td class="num strong">'+r.t+'</td>'));tc+=r.com;tch+=r.chao;});
+    b1.appendChild(el("tr",null,'<td class="strong">Cộng</td><td class="num strong">'+tc+'</td><td class="num strong">'+tch+'</td><td class="num strong">'+(tc+tch)+'</td>'));
+    t1.appendChild(b1);c.appendChild(t1);
+    var t2=el("table",{class:"t",style:"margin-top:18px"});
+    t2.innerHTML='<thead><tr><th>② Sữa-Soup · Loại suất '+(state.src==="db"?tagMock():"")+'</th><th class="num">Sản lượng</th></tr></thead>';
+    var b2=el("tbody");var ts=0;
+    SL_SUASOUP.forEach(function(r){b2.appendChild(el("tr",null,'<td>'+r.ten+'</td><td class="num strong">'+r.sl+'</td>'));ts+=r.sl;});
+    b2.appendChild(el("tr",null,'<td class="strong">Cộng</td><td class="num strong">'+ts+'</td>'));
+    t2.appendChild(b2);c.appendChild(t2);
+    w.appendChild(c);
+  } else if(state.rpTab==="nl"){
+    var cn=el("div",{class:"card"});
+    cn.appendChild(el("h3",null,"Nguyên liệu — Sữa bột (theo công thức Tab 4 của KDD) "+tagMock()));
+    var ts1=el("table",{class:"t"});
+    ts1.innerHTML='<thead><tr><th>Mã sữa</th><th>Tên</th><th class="num">Tổng ml cần</th><th class="num">Thành phẩm (ml)</th><th class="num">Bột (g)/suất</th><th class="num">Tổng bột cần (g)</th></tr></thead>';
+    var bn=el("tbody");var tot=0;
+    NL_SUA.forEach(function(r){bn.appendChild(el("tr",null,'<td class="strong">'+r.ma+'</td><td>'+r.ten+'</td><td class="num">'+nf(r.ml)+'</td><td class="num">'+r.tp+'</td><td class="num">'+r.bot+'</td><td class="num strong">'+nf(r.need)+'</td>'));tot+=r.need;});
+    bn.appendChild(el("tr",null,'<td class="strong" colspan="5">Tổng sữa bột cần trong ngày</td><td class="num strong">'+nf(tot)+' g ≈ '+(tot/1000).toFixed(1).replace(".",",")+' kg</td>'));
+    ts1.appendChild(bn);cn.appendChild(ts1);
+    w.appendChild(cn);
+    var cs=el("div",{class:"card"});
+    cs.appendChild(el("h3",null,"Nguyên liệu — Soup sonde"));
+    var ts2=el("table",{class:"t"});
+    ts2.innerHTML='<thead><tr><th>Mã</th><th>Tên</th><th class="num">Tổng suất</th><th>Định lượng/suất</th><th>Tổng nguyên liệu cần</th></tr></thead>';
+    var bs=el("tbody");
+    NL_SOUP.forEach(function(r){bs.appendChild(el("tr",null,'<td class="strong">'+r.ma+'</td><td>'+r.ten+'</td><td class="num strong">'+r.sl+'</td><td class="sub">'+r.nl+'</td><td>'+r.tong+'</td>'));});
+    ts2.appendChild(bs);cs.appendChild(ts2);
+    w.appendChild(cs);
+  } else {
+    var cg=el("div",{class:"card"});
+    cg.appendChild(el("h3",null,"Giao hàng — OK / thất bại theo lý do & cách xử lý "+tagMock()));
+    var tg=el("table",{class:"t"});
+    tg.innerHTML='<thead><tr><th>Khoa</th><th class="num">Giao OK</th><th class="num">Thất bại</th><th>Lý do</th><th>Cách xử lý</th></tr></thead>';
+    var bg=el("tbody");var ok=0,fa=0;
+    GIAO_RP.forEach(function(r){
+      var fc=r.fail>0?'class="num" style="color:var(--red);font-weight:700"':'class="num sub"';
+      bg.appendChild(el("tr",null,'<td>'+r.khoa+'</td><td class="num strong">'+r.ok+'</td><td '+fc+'>'+r.fail+'</td><td class="sub">'+r.ly+'</td><td>'+(r.xl==="-"?'<span class="sub">-</span>':'<span class="ro">'+r.xl+'</span>')+'</td>'));ok+=r.ok;fa+=r.fail;
+    });
+    bg.appendChild(el("tr",null,'<td class="strong">Cộng</td><td class="num strong">'+ok+'</td><td class="num strong" style="color:var(--red)">'+fa+'</td><td colspan="2" class="sub">Tỷ lệ thành công '+(ok/(ok+fa)*100).toFixed(1).replace(".",",")+'%</td>'));
+    tg.appendChild(bg);cg.appendChild(tg);
+    w.appendChild(cg);
+  }
+}
+
+/* ====================== C — NGƯỜI DÙNG ====================== */
+function viewC(w){
+  /* thanh công cụ */
+  var bar=el("div",{class:"tool"});
+  bar.innerHTML='<input id="q" placeholder="Tìm tên / email (Enter)" style="min-width:220px">'+
+    '<select id="fvt"><option value="">Tất cả vai trò</option>'+VAI_TRO_DB.map(function(v){return '<option value="'+v.ma+'">'+v.ten+'</option>';}).join("")+'</select>';
+  var addBtn=el("button",{class:"b out"},"+ Thêm Gmail cho phép"); addBtn.onclick=openAddAllow;
+  bar.appendChild(addBtn);
+  w.appendChild(bar);
+  var qi=bar.querySelector("#q"); qi.value=state.cQ||""; qi.onchange=function(){state.cQ=qi.value;render();};
+  var fi=bar.querySelector("#fvt"); fi.value=state.cVt||""; fi.onchange=function(){state.cVt=fi.value;render();};
+
+  /* bảng người dùng */
+  var c=el("div",{class:"card"});
+  c.appendChild(el("h3",null,"Người dùng ("+USERS_DB.length+") "+tagDb()));
+  var t=el("table",{class:"t"});
+  t.innerHTML='<thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Bộ phận / phạm vi</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>';
+  var tb=el("tbody");
+  var q=(state.cQ||"").toLowerCase(), fvt=state.cVt||"";
+  var list=USERS_DB.filter(function(u){
+    if(fvt&&u.vai_tro!==fvt)return false;
+    if(q&&(((u.ho_ten||"")+" "+u.email).toLowerCase().indexOf(q)<0))return false;
+    return true;
+  });
+  if(!list.length){ tb.appendChild(el("tr",null,'<td colspan="6" class="muted">Chưa có người dùng (cần đăng nhập Google lần đầu để tạo hồ sơ).</td>')); }
+  list.forEach(function(u){
+    var capt=u.vai_tro==="admin"&&u.cap_quan_tri?(u.cap_quan_tri==="tong"?" (tổng)":" (phụ)"):"";
+    var vtCell=u.vai_tro?'<span class="ro">'+vtNameDb(u.vai_tro)+capt+'</span>':'<span class="badge" style="background:var(--yellowLight);color:var(--yellow)">chờ gán</span>';
+    var st=u.trang_thai?'<span class="badge" style="background:var(--greenLight);color:var(--green)">● Đang bật</span>':'<span class="badge" style="background:var(--grayLight);color:var(--gray)">○ Tắt</span>';
+    var tr=el("tr",null,'<td class="strong">'+(u.ho_ten||"—")+'</td><td class="sub">'+u.email+'</td><td>'+vtCell+'</td><td>'+(u.bo_phan||"—")+(u.khu_vuc?' · '+u.khu_vuc:'')+'</td><td>'+st+'</td>');
+    var act=el("td");
+    var eB=el("button",{class:"b sm"},"Sửa"); eB.onclick=function(){openEditUser(u);};
+    var tB=el("button",{class:"b sm"},u.trang_thai?"Tắt":"Bật"); tB.onclick=function(){toggleUser(u);};
+    act.appendChild(eB); act.appendChild(document.createTextNode(" ")); act.appendChild(tB);
+    tr.appendChild(act); tb.appendChild(tr);
+  });
+  t.appendChild(tb); c.appendChild(t); w.appendChild(c);
+
+  /* bảng Gmail được phép */
+  var c2=el("div",{class:"card"});
+  c2.appendChild(el("h3",null,"Gmail được phép đăng nhập ("+ALLOW_DB.length+") "+tagDb()));
+  c2.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},"Nhập trước Gmail + vai trò; khi người đó đăng nhập Google sẽ được kích hoạt với vai trò đã gán."));
+  var t2=el("table",{class:"t"});
+  t2.innerHTML='<thead><tr><th>Email</th><th>Họ tên</th><th>Vai trò gán sẵn</th><th>Bộ phận</th><th></th></tr></thead>';
+  var tb2=el("tbody");
+  if(!ALLOW_DB.length){ tb2.appendChild(el("tr",null,'<td colspan="5" class="muted">Chưa có Gmail nào trong danh sách.</td>')); }
+  ALLOW_DB.forEach(function(a){
+    var capt=a.cap_quan_tri?" ("+a.cap_quan_tri+")":"";
+    var tr=el("tr",null,'<td class="strong">'+a.email+'</td><td>'+(a.ho_ten||"—")+'</td><td>'+(a.vai_tro?'<span class="ro">'+vtNameDb(a.vai_tro)+capt+'</span>':'<span class="sub">—</span>')+'</td><td>'+(a.bo_phan||"—")+'</td>');
+    var act=el("td"); var dB=el("button",{class:"b sm red"},"Xoá"); dB.onclick=function(){delAllow(a);}; act.appendChild(dB); tr.appendChild(act);
+    tb2.appendChild(tr);
+  });
+  t2.appendChild(tb2); c2.appendChild(t2); w.appendChild(c2);
+}
+
+/* ====================== D — DỮ LIỆU NỀN ====================== */
+function viewD(w){
+  var tabs=[["khoa","Khoa & phòng/giường"],["khuvuc","Khu vực"],["cu","Giờ cữ"],["lock","Giờ khóa buổi"],["bp","Bộ phận"],["benh","Danh mục bệnh"],["tuoi","Nhóm tuổi"],["sua","Danh mục sữa (xem)"]];
+  var seg=el("div",{class:"tool"});
+  var sg=el("div",{class:"seg"});
+  tabs.forEach(function(t){var b=el("button",{class:(state.dnTab===t[0]?"on":"")},t[1]);b.onclick=function(){state.dnTab=t[0];render();};sg.appendChild(b);});
+  seg.appendChild(sg);w.appendChild(seg);
+  var c=el("div",{class:"card"});
+  if(state.dnTab==="khoa"){
+    var khoaRows = KHOA_DB2.length?KHOA_DB2:KHOA.map(function(k,i){return {ma:i+1,ten:k,khu_vuc:null};});
+    c.appendChild(el("div",{class:"row between"},'<h3 style="margin:0">'+khoaRows.length+' khoa lâm sàng '+(state.src==="db"?tagDb():"")+'</h3>'));
+    c.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},'Khoa + khu vực: lấy từ bảng <b>dm_khoa</b>. Cột "số phòng/giường" '+tagMock()+' — chưa có bảng phòng/giường.'));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Mã</th><th>Tên khoa</th><th>Khu vực</th><th>Số phòng/giường</th></tr></thead>';
+    var tb=el("tbody");
+    khoaRows.forEach(function(k,i){
+      var kvName=k.khu_vuc?((KHUVUC_DB.filter(function(x){return x.ma===k.khu_vuc;})[0]||{}).ten||k.khu_vuc):'<span class="sub">—</span>';
+      tb.appendChild(el("tr",null,'<td class="sub">'+(k.ma||(i+1))+'</td><td class="strong">'+k.ten+'</td><td>'+kvName+'</td><td class="sub">'+(8+(i%10))+' phòng · '+(20+i*2)+' giường</td>'));
+    });
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="khuvuc"){
+    c.appendChild(el("h3",null,"Khu vực giao ("+KHUVUC_DB.length+") "+tagDb()));
+    c.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},"Mỗi khu vực gom nhiều khoa để người giao phụ trách (bảng dm_khu_vuc + dm_khoa.khu_vuc)."));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Mã</th><th>Tên khu vực</th><th class="num">Số khoa</th><th>Khoa thuộc khu vực</th></tr></thead>';
+    var tb=el("tbody");
+    if(!KHUVUC_DB.length){ tb.appendChild(el("tr",null,'<td colspan="4" class="muted">Chưa có khu vực.</td>')); }
+    KHUVUC_DB.forEach(function(kv){
+      var ks=KHOA_DB2.filter(function(k){return k.khu_vuc===kv.ma;}).map(function(k){return k.ten;});
+      tb.appendChild(el("tr",null,'<td class="strong">'+kv.ma+'</td><td>'+kv.ten+'</td><td class="num">'+ks.length+'</td><td class="sub">'+(ks.length?ks.join(", "):"—")+'</td>'));
+    });
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="cu"){
+    c.appendChild(el("h3",null,"Giờ cữ từng loại suất "+tagMock()));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Loại suất</th><th class="num">Số cữ</th><th>Giờ cữ trong ngày</th><th></th></tr></thead>';
+    var tb=el("tbody");DN_CU.forEach(function(r){tb.appendChild(el("tr",null,'<td class="strong">'+r.loai+'</td><td class="num">'+r.so+'</td><td class="sub">'+r.gio+'</td><td><button class="b sm">Sửa</button></td>'));});
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="lock"){
+    c.appendChild(el("h3",null,"Giờ khóa theo buổi (hạn khoa lâm sàng gửi) "+tagMock()));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Buổi</th><th>Giờ khóa</th><th></th></tr></thead>';
+    var tb=el("tbody");DN_KHOA_LOCK.forEach(function(r){tb.appendChild(el("tr",null,'<td class="strong">'+r.buoi+'</td><td><span class="lockbadge">🔒 '+r.lock+'</span></td><td><button class="b sm">Sửa</button></td>'));});
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="bp"){
+    c.appendChild(el("h3",null,"Bộ phận sản xuất "+tagMock()));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Bộ phận</th><th>Loại suất phụ trách</th><th></th></tr></thead>';
+    var tb=el("tbody");
+    tb.appendChild(el("tr",null,'<td class="strong">🍚 Bếp phòng dịch vụ</td><td><span class="chip bp-dv">Cơm DV</span><span class="chip bp-dv">Cháo DV</span></td><td><button class="b sm">Sửa</button></td>'));
+    tb.appendChild(el("tr",null,'<td class="strong">🥣 Bếp cơm bệnh lý</td><td><span class="chip bp-bl">Cơm BL</span><span class="chip bp-bl">Cháo BL</span></td><td><button class="b sm">Sửa</button></td>'));
+    tb.appendChild(el("tr",null,'<td class="strong">🍼 Phòng sữa - soup</td><td><span class="chip bp-ss">Sữa BT</span><span class="chip bp-ss">Sữa ĐB</span><span class="chip bp-ss">Soup sonde</span></td><td><button class="b sm">Sửa</button></td>'));
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="benh"){
+    c.appendChild(el("h3",null,"Danh mục bệnh ("+DN_BENH.length+" mã) — KDD dùng lại "+(state.src==="db"?tagDb():"")));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Mã</th><th>Tên</th><th></th></tr></thead>';
+    var tb=el("tbody");DN_BENH.forEach(function(r){tb.appendChild(el("tr",null,'<td class="strong">'+r[0]+'</td><td>'+r[1]+'</td><td><button class="b sm">Sửa</button></td>'));});
+    t.appendChild(tb);c.appendChild(t);
+  } else if(state.dnTab==="tuoi"){
+    c.appendChild(el("h3",null,"Nhóm tuổi ("+DN_TUOI.length+" nhóm) — KDD dùng lại "+(state.src==="db"?tagDb():"")));
+    var box=el("div",{class:"row wrapf gap8"});DN_TUOI.forEach(function(x){box.appendChild(el("span",{class:"ro",style:"font-size:12px;padding:5px 12px"},x));});c.appendChild(box);
+  } else {
+    c.appendChild(el("div",{class:"note",style:"margin:0 0 12px"},'🔒 <b>Danh mục sữa do KDD sở hữu</b> — Admin tổng chỉ <b>xem & giám sát</b>, không sửa. Chỉnh sửa thực hiện ở Tab 4 màn KDD.'));
+    var t=el("table",{class:"t"});t.innerHTML='<thead><tr><th>Mã sữa</th><th>Tên</th><th>Loại</th><th class="num">Bột (g)</th><th class="num">Nước (ml)</th><th class="num">Thành phẩm</th><th>Trạng thái</th></tr></thead>';
+    var tb=el("tbody");
+    NL_SUA.forEach(function(r){tb.appendChild(el("tr",null,'<td class="strong">'+r.ma+'</td><td>'+r.ten+'</td><td><span class="ro">'+(r.ma==="SUA006"||r.ma==="SUA013"?"BT":"ĐB")+'</span></td><td class="num">'+r.bot+'</td><td class="num">'+(r.tp-r.bot)+'</td><td class="num">'+r.tp+'</td><td><span class="badge" style="background:var(--greenLight);color:var(--green)">Đang dùng</span></td>'));});
+    t.appendChild(tb);c.appendChild(t);
+  }
+  w.appendChild(c);
+}
+
+/* ====================== E — GIÁM SÁT ====================== */
+function viewE(w){
+  var c1=el("div",{class:"card"});
+  c1.appendChild(el("h3",null,"Trạng thái từng cữ xuyên các bộ phận"));
+  var t=el("table",{class:"t"});
+  t.innerHTML='<thead><tr><th>Cữ</th><th>KDD duyệt/gửi</th><th>Sản xuất</th><th>Giao hàng</th><th>Trạng thái</th></tr></thead>';
+  var tb=el("tbody");
+  GIAMSAT.forEach(function(r){
+    var st=r.st==="done"?'<span class="badge" style="background:var(--greenLight);color:var(--green)">Hoàn tất</span>':r.st==="run"?'<span class="badge" style="background:var(--orangeLight);color:var(--orange)">Đang chạy</span>':'<span class="badge" style="background:var(--grayLight);color:var(--gray)">Chờ</span>';
+    tb.appendChild(el("tr",null,'<td class="strong">'+r.cu+'</td><td>'+r.duyet+'</td><td>'+r.sx+'</td><td>'+r.giao+'</td><td>'+st+'</td>'));
+  });
+  t.appendChild(tb);c1.appendChild(t);w.appendChild(c1);
+  var c2=el("div",{class:"card"});
+  c2.appendChild(el("div",{class:"row between"},'<h3 style="margin:0">Audit log — chỉ mốc chính (duyệt / gửi / giao)</h3><button class="b out sm" id="x">⬇ Xuất Excel</button>'));
+  c2.querySelector("#x").onclick=function(){toast("Đã xuất nhật ký (mock)");};
+  var ta=el("table",{class:"t"});
+  ta.innerHTML='<thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Vai trò</th><th>Hành động</th><th>Cữ</th></tr></thead>';
+  var tba=el("tbody");
+  AUDIT.forEach(function(a){tba.appendChild(el("tr",null,'<td class="strong">'+a.t+'</td><td>'+a.ai+'</td><td><span class="ro">'+a.vt+'</span></td><td>'+a.hd+'</td><td>'+a.cu+'</td>'));});
+  ta.appendChild(tba);c2.appendChild(ta);
+  c2.appendChild(el("div",{class:"sub",style:"margin-top:8px"},"Nhật ký chỉ ghi mốc chính (duyệt · gửi · giao) — không lưu từng thao tác trên từng bệnh nhân."));
+  w.appendChild(c2);
+}
+
+/* ====================== F — NHÂN VIÊN GIAO ====================== */
+function viewF(w){
+  /* Phân công giao theo ngày/ca (thật) */
+  var cp=el("div",{class:"card"});
+  cp.appendChild(el("h3",null,"Phân công giao theo ngày/ca "+tagDb()));
+  cp.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},"Mỗi (ngày · ca · khu vực) gán 1 người giao — đổi theo ngày (bảng phan_cong_giao)."));
+  if(!PCG_DB.length){ cp.appendChild(el("div",{class:"muted"},"Chưa có phân công nào.")); }
+  else{
+    var tp=el("table",{class:"t"});
+    tp.innerHTML='<thead><tr><th>Ngày</th><th>Ca</th><th>Khu vực</th><th>Người giao</th><th>Ghi chú</th></tr></thead>';
+    var tbp=el("tbody");
+    PCG_DB.forEach(function(p){
+      var kv=(KHUVUC_DB.filter(function(x){return x.ma===p.khu_vuc;})[0]||{}).ten||p.khu_vuc;
+      var ng=(USERS_DB.filter(function(x){return x.id===p.nguoi_giao;})[0]||{});
+      tbp.appendChild(el("tr",null,'<td class="strong">'+p.ngay+'</td><td>'+p.ca+'</td><td>'+kv+'</td><td>'+(ng.ho_ten||ng.email||'<span class="sub">— chưa gán</span>')+'</td><td class="sub">'+(p.ghi_chu||'')+'</td>'));
+    });
+    tp.appendChild(tbp);cp.appendChild(tp);
+  }
+  w.appendChild(cp);
+
+  /* Hiệu suất (còn mock — cần bảng giao_hang) */
+  var bar=el("div",{class:"tool"});
+  bar.innerHTML='<select><option>Hôm nay</option><option>7 ngày</option><option>Tháng này</option></select>'+
+    '<input placeholder="Tìm người giao" style="min-width:180px">'+
+    '<button class="b grn" id="x">⬇ Xuất Excel</button>';
+  w.appendChild(bar);
+  bar.querySelector("#x").onclick=function(){toast("Đã xuất hiệu suất giao (mock)");};
+  // tổng quan
+  var tg=0,tok=0,tf=0,tb2=0;GIAO_KPI.forEach(function(r){tg+=r.giao;tok+=r.ok;tf+=r.fail;tb2+=r.back;});
+  var kp=el("div",{class:"kpis",style:"margin-bottom:14px"});
+  [["Tổng suất giao",nf(tg),"var(--primary)"],["Giao thành công",nf(tok),"var(--green)"],["Thất bại",tf,"var(--orange)"],["Đem về bếp",tb2,"var(--red)"]].forEach(function(k){
+    kp.appendChild(el("div",{class:"kpi"},'<div class="kl">'+k[0]+'</div><div class="kv" style="color:'+k[2]+'">'+k[1]+'</div>'));
+  });
+  w.appendChild(kp);
+  var c=el("div",{class:"card"});
+  c.appendChild(el("h3",null,"Hiệu suất từng người giao "+tagMock()));
+  var t=el("table",{class:"t"});
+  t.innerHTML='<thead><tr><th>Người giao</th><th>Khu vực phụ trách</th><th class="num">Suất giao</th><th class="num">Thành công</th><th class="num">Thất bại</th><th class="num">Đem về bếp</th><th>Tỷ lệ thành công</th></tr></thead>';
+  var tb=el("tbody");
+  GIAO_KPI.forEach(function(r){
+    var col=r.rate>=97?"var(--green)":r.rate>=95?"var(--orange)":"var(--red)";
+    var bar='<div class="row gap8"><div class="bar"><i style="width:'+r.rate+'%;background:'+col+'"></i></div><b style="color:'+col+'">'+r.rate.toFixed(1).replace(".",",")+'%</b></div>';
+    tb.appendChild(el("tr",null,'<td class="strong">'+r.ten+'</td><td class="sub">'+r.khu+'</td><td class="num strong">'+r.giao+'</td><td class="num">'+r.ok+'</td><td class="num" style="color:var(--orange)">'+r.fail+'</td><td class="num" style="color:var(--red)">'+r.back+'</td><td>'+bar+'</td>'));
+  });
+  t.appendChild(tb);c.appendChild(t);w.appendChild(c);
+  w.appendChild(el("div",{class:"note"},'Tài khoản đăng nhập của người giao quản lý ở <b>Module C</b>. Theo dõi giao real-time nằm trong <b>Dashboard (A)</b> và <b>Báo cáo giao hàng (B)</b>.'));
+}
+
+/* ====================== G — DANH MỤC VAI TRÒ ====================== */
+function viewG(w){
+  var c=el("div",{class:"card"});
+  c.appendChild(el("h3",null,"Danh mục vai trò ("+VAI_TRO_DB.length+") "+tagDb()));
+  c.appendChild(el("div",{class:"sub",style:"margin:-6px 0 10px"},"7 vai trò cố định (bảng vai_tro). Mỗi tài khoản được gán 1 vai trò ở mục Người dùng."));
+  var t=el("table",{class:"t"});
+  t.innerHTML='<thead><tr><th>Mã</th><th>Tên vai trò</th><th>Mô tả</th><th class="num">Số người</th></tr></thead>';
+  var tb=el("tbody");
+  if(!VAI_TRO_DB.length){ tb.appendChild(el("tr",null,'<td colspan="4" class="muted">Chưa đọc được bảng vai_tro (chạy file SQL chưa?).</td>')); }
+  VAI_TRO_DB.forEach(function(v){
+    var cnt=USERS_DB.filter(function(u){return u.vai_tro===v.ma;}).length;
+    tb.appendChild(el("tr",null,'<td class="strong">'+v.ma+'</td><td>'+v.ten+'</td><td class="sub">'+(v.mo_ta||"")+'</td><td class="num">'+cnt+'</td>'));
+  });
+  t.appendChild(tb);c.appendChild(t);w.appendChild(c);
+}
+
+/* ====================== MODAL + GHI DB ====================== */
+function showModal(title, fields, onSave){
+  var host=document.getElementById("toastHost");
+  var ov=el("div",{}); ov.style.cssText="position:fixed;inset:0;background:rgba(13,31,45,.45);display:flex;align-items:center;justify-content:center;z-index:300";
+  var card=el("div",{class:"card"}); card.style.cssText="width:400px;max-width:92vw;margin:0;max-height:90vh;overflow:auto";
+  card.appendChild(el("h3",null,title));
+  var inputs={};
+  fields.forEach(function(f){
+    card.appendChild(el("div",{class:"sub",style:"margin:9px 0 3px"},f.label));
+    var inp;
+    if(f.type==="select"){
+      inp=el("select"); inp.style.cssText="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px";
+      f.options.forEach(function(o){var op=el("option",{value:o.v},o.t); if(o.v===(f.value||"")) op.setAttribute("selected","selected"); inp.appendChild(op);});
+    } else {
+      inp=el("input"); inp.style.cssText="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px"; if(f.value) inp.value=f.value;
+    }
+    card.appendChild(inp); inputs[f.key]=inp;
+  });
+  var row=el("div",{class:"row gap8",style:"margin-top:16px;justify-content:flex-end"});
+  var cancel=el("button",{class:"b"},"Huỷ"); cancel.onclick=function(){ov.remove();};
+  var ok=el("button",{class:"b pri"},"Lưu"); ok.onclick=function(){var vals={};for(var k in inputs)vals[k]=inputs[k].value;onSave(vals,function(){ov.remove();});};
+  row.appendChild(cancel); row.appendChild(ok); card.appendChild(row);
+  ov.appendChild(card); host.appendChild(ov);
+}
+function bpOptions(){
+  return [{v:"",t:"(không)"}]
+    .concat(BOPHAN_DB.map(function(b){return {v:b.ma,t:b.ten};}))
+    .concat(KHOA_DB2.map(function(k){return {v:k.ma,t:"Khoa: "+k.ten};}));
+}
+function toggleUser(u){
+  var c=getClient(); if(!c)return;
+  c.from("nguoi_dung").update({trang_thai:!u.trang_thai}).eq("id",u.id).then(function(r){
+    if(r.error){toast("Lỗi: "+r.error.message);return;}
+    toast("Đã cập nhật"); reloadAll();
+  });
+}
+function openEditUser(u){
+  var vtOpts=[{v:"",t:"(chưa gán)"}].concat(VAI_TRO_DB.map(function(v){return {v:v.ma,t:v.ten};}));
+  var kvOpts=[{v:"",t:"(không)"}].concat(KHUVUC_DB.map(function(k){return {v:k.ma,t:k.ten};}));
+  showModal("Sửa: "+(u.ho_ten||u.email),[
+    {key:"vai_tro",label:"Vai trò",type:"select",options:vtOpts,value:u.vai_tro||""},
+    {key:"cap_quan_tri",label:"Cấp quản trị (chỉ khi vai trò Admin)",type:"select",options:[{v:"",t:"(không)"},{v:"tong",t:"Admin tổng"},{v:"phu",t:"Admin phụ"}],value:u.cap_quan_tri||""},
+    {key:"bo_phan",label:"Bộ phận / khoa phụ trách",type:"select",options:bpOptions(),value:u.bo_phan||""},
+    {key:"khu_vuc",label:"Khu vực mặc định (người giao)",type:"select",options:kvOpts,value:u.khu_vuc||""}
+  ],function(vals,done){
+    var patch={vai_tro:vals.vai_tro||null,cap_quan_tri:vals.cap_quan_tri||null,bo_phan:vals.bo_phan||null,khu_vuc:vals.khu_vuc||null};
+    getClient().from("nguoi_dung").update(patch).eq("id",u.id).then(function(r){
+      if(r.error){toast("Lỗi: "+r.error.message);return;}
+      toast("Đã lưu"); done(); reloadAll();
+    });
+  });
+}
+function openAddAllow(){
+  var vtOpts=[{v:"",t:"(chưa gán)"}].concat(VAI_TRO_DB.map(function(v){return {v:v.ma,t:v.ten};}));
+  showModal("Thêm Gmail được phép",[
+    {key:"email",label:"Gmail",type:"text",value:""},
+    {key:"ho_ten",label:"Họ tên",type:"text",value:""},
+    {key:"vai_tro",label:"Vai trò gán sẵn",type:"select",options:vtOpts,value:""},
+    {key:"cap_quan_tri",label:"Cấp quản trị (nếu Admin)",type:"select",options:[{v:"",t:"(không)"},{v:"tong",t:"Admin tổng"},{v:"phu",t:"Admin phụ"}],value:""},
+    {key:"bo_phan",label:"Bộ phận / khoa",type:"select",options:bpOptions(),value:""}
+  ],function(vals,done){
+    var em=(vals.email||"").trim().toLowerCase();
+    if(!em){toast("Nhập Gmail");return;}
+    var row={email:em,ho_ten:vals.ho_ten||null,vai_tro:vals.vai_tro||null,cap_quan_tri:vals.cap_quan_tri||null,bo_phan:vals.bo_phan||null};
+    getClient().from("tai_khoan_cho_phep").upsert(row,{onConflict:"email"}).then(function(r){
+      if(r.error){toast("Lỗi: "+r.error.message);return;}
+      toast("Đã thêm Gmail"); done(); reloadAll();
+    });
+  });
+}
+function delAllow(a){
+  if(!window.confirm("Xoá "+a.email+" khỏi danh sách cho phép?"))return;
+  getClient().from("tai_khoan_cho_phep").delete().eq("email",a.email).then(function(r){
+    if(r.error){toast("Lỗi: "+r.error.message);return;}
+    toast("Đã xoá"); reloadAll();
+  });
+}
+
+/* ====================== ĐĂNG NHẬP GOOGLE ====================== */
+function renderLogin(){
+  var app=document.getElementById("app"); app.innerHTML="";
+  var box=el("div",{style:"min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center"});
+  var card=el("div",{class:"card",style:"max-width:380px;text-align:center;padding:32px"});
+  card.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px">QUẢN TRỊ TỔNG</div>'+
+    '<div style="font-size:20px;font-weight:800;margin:4px 0 6px">Hệ thống suất ăn Nhi Đồng 1</div>'+
+    '<div class="sub" style="margin-bottom:20px">Đăng nhập để tiếp tục</div>';
+  var btn=el("button",{class:"b pri",style:"width:100%;padding:12px;font-size:13px"},"🔑 Đăng nhập bằng Google");
+  btn.onclick=doLogin; card.appendChild(btn);
+  card.appendChild(el("div",{class:"sub",style:"margin-top:14px"},"Chỉ tài khoản được Admin cấp quyền mới truy cập được."));
+  box.appendChild(card); app.appendChild(box);
+}
+function renderDenied(){
+  var app=document.getElementById("app"); app.innerHTML="";
+  var em=(state.session&&state.session.user&&state.session.user.email)||"";
+  var box=el("div",{style:"min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center"});
+  var card=el("div",{class:"card",style:"max-width:420px;text-align:center;padding:30px"});
+  card.innerHTML='<div style="font-size:34px">🔒</div><div style="font-size:17px;font-weight:800;margin:6px 0">Chưa có quyền truy cập</div>'+
+    '<div class="sub" style="margin-bottom:8px">Tài khoản <b>'+em+'</b> chưa được cấp quyền Admin hoặc đang chờ duyệt. Vui lòng liên hệ Admin tổng.</div>';
+  var lo=el("button",{class:"b out",style:"margin-top:10px"},"Đăng xuất"); lo.onclick=doLogout;
+  card.appendChild(lo); box.appendChild(card); app.appendChild(box);
+}
+function doLogin(){
+  var c=getClient(); if(!c){toast("Chưa cấu hình Supabase");return;}
+  c.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.href.split("#")[0]}});
+}
+function doLogout(){ var c=getClient(); if(c) c.auth.signOut().then(function(){ state.session=null; state.me=null; renderLogin(); }); }
+
+function loadAdminData(){
+  var c=getClient(); if(!c) return Promise.resolve();
+  return Promise.all([
+    c.from("vai_tro").select("*").order("thu_tu",{ascending:true}),
+    c.from("nguoi_dung").select("*").order("created_at",{ascending:false}),
+    c.from("tai_khoan_cho_phep").select("*").order("email",{ascending:true}),
+    c.from("dm_khu_vuc").select("*").order("thu_tu",{ascending:true}),
+    c.from("dm_khoa").select("ma,ten,thu_tu,khu_vuc").order("thu_tu",{ascending:true}),
+    c.from("phan_cong_giao").select("*").order("ngay",{ascending:false}).limit(200),
+    c.from("dm_bo_phan").select("*").order("ma",{ascending:true})
+  ]).then(function(r){
+    VAI_TRO_DB=(r[0]&&r[0].data)||[];
+    USERS_DB  =(r[1]&&r[1].data)||[];
+    ALLOW_DB  =(r[2]&&r[2].data)||[];
+    KHUVUC_DB =(r[3]&&r[3].data)||[];
+    KHOA_DB2  =(r[4]&&r[4].data)||[];
+    PCG_DB    =(r[5]&&r[5].data)||[];
+    BOPHAN_DB =(r[6]&&r[6].data)||[];
+  }).catch(function(e){ console.error("[admin] loadAdminData lỗi:",e); });
+}
+function reloadAll(){ loadAdminData().then(boot); }
+
+function afterLogin(){
+  var c=getClient();
+  state.src="loading"; render();
+  c.from("nguoi_dung").select("*").eq("id",state.session.user.id).maybeSingle().then(function(r){
+    state.me=(r&&r.data)||null;
+    if(!state.me || state.me.vai_tro!=="admin"){ renderDenied(); return null; }
+    return loadAdminData().then(boot);
+  }).catch(function(e){ console.error("[admin] afterLogin lỗi:",e); renderDenied(); });
+}
+function init(){
+  if(!configured()){ state.src="mock"; render(); return; }
+  var c=getClient(); if(!c){ state.src="mock"; render(); return; }
+  c.auth.getSession().then(function(res){
+    state.session=(res&&res.data&&res.data.session)||null;
+    if(!state.session){ renderLogin(); } else { afterLogin(); }
+  });
+  c.auth.onAuthStateChange(function(_e,sess){
+    var was=!!state.session; state.session=sess;
+    if(sess && !was){ afterLogin(); }
+    else if(!sess){ state.me=null; renderLogin(); }
+  });
+}
+
+/* ====================== BOOT — ĐỌC DỮ LIỆU THẬT ====================== */
+function aggregate(rows){
+  // ---- Phễu (funnel) ----
+  var total=rows.length;
+  var daGui=rows.filter(function(x){return x.trang_thai==="da_gui_sx";}).length;
+  var tuChoi=rows.filter(function(x){return x.trang_thai==="kdd_tu_choi";}).length;
+  FUNNEL=[
+    {l:"Đăng ký",n:total,d:"khoa lâm sàng gửi",c:"var(--gray)"},
+    {l:"Đã duyệt / gửi",n:daGui,d:"KDD đã chuyển SX",c:"var(--primary)"},
+    {l:"Đã sản xuất",n:null,d:"chưa theo dõi (GĐ2)",c:"var(--orange)"},
+    {l:"Đã giao",n:null,d:"chưa theo dõi (GĐ2)",c:"var(--green)"}
+  ];
+  // ---- KPI ----
+  KPI=[
+    {l:"Tỷ lệ giao thành công",v:"—",c:"var(--green)"},
+    {l:"Tỷ lệ từ chối / trả về",v:(total?(tuChoi/total*100).toFixed(1).replace(".",","):"0")+"%",c:"var(--orange)"},
+    {l:"Suất trả về bếp",v:tuChoi,c:"var(--red)"}
+  ];
+  // ---- Cữ × bộ phận ----
+  function isBL(bp){return bp==="bep_benh_ly"||bp==="bep_bl";}
+  var byCu={};
+  rows.forEach(function(x){
+    var cu=x.cu||"—"; if(!byCu[cu])byCu[cu]={cu:cu,dk:0,bep_dv:0,bep_bl:0,sua_soup:0,giao:"—",st:"wait"};
+    byCu[cu].dk++;
+    if(x.bo_phan==="bep_dv")byCu[cu].bep_dv++;
+    else if(isBL(x.bo_phan))byCu[cu].bep_bl++;
+  });
+  CU_BP=Object.keys(byCu).sort().map(function(k){return byCu[k];});
+  if(!CU_BP.length)CU_BP=[{cu:"—",dk:0,bep_dv:0,bep_bl:0,sua_soup:0,giao:"—",st:"wait"}];
+  // ---- Cảnh báo (chỉ phần suy ra được từ dữ liệu thật) ----
+  ALERTS=[];
+  if(tuChoi>0)ALERTS.push({t:"yel",ic:"↩️",x:"KDD trả về <b>"+tuChoi+" suất</b> trong ngày — chờ khoa sửa (xem màn KDD)."});
+  // ---- Sản lượng cơm-cháo theo bộ phận ----
+  var sl={};
+  rows.forEach(function(x){
+    var bp=x.bo_phan; if(!bp)return;
+    var name=bp==="bep_dv"?"Bếp phòng dịch vụ":(isBL(bp)?"Bếp cơm bệnh lý":bp);
+    if(!sl[name])sl[name]={bp:name,com:0,chao:0,t:0};
+    var f=x.loai_food||((x.loai||"").indexOf("chao")>-1?"chao":"com");
+    if(f==="chao")sl[name].chao++;else sl[name].com++;
+    sl[name].t++;
+  });
+  SL_COMCHAO=Object.keys(sl).map(function(k){return sl[k];});
+  if(!SL_COMCHAO.length)SL_COMCHAO=[{bp:"(chưa có dữ liệu trong ngày)",com:0,chao:0,t:0}];
+}
+
+function boot(){
+  if(!configured()){ state.src="mock"; render(); return; }
+  var c=getClient();
+  if(!c){ state.src="mock"; render(); return; }
+  state.src="loading"; render();
+  Promise.resolve()
+    .then(function(){ return c.from("dang_ky_suat").select("*"); })
+    .then(function(r){
+      if(r.error) throw r.error;
+      var rows=r.data||[];
+      var days=rows.map(function(x){return x.ngay;}).filter(Boolean).sort();
+      state.day=days.length?days[days.length-1]:null;
+      var dayRows=state.day?rows.filter(function(x){return x.ngay===state.day;}):rows;
+      aggregate(dayRows);
+      // Danh mục nền (đọc song song)
+      return Promise.all([
+        c.from("dm_khoa").select("ten,thu_tu").order("thu_tu",{ascending:true}),
+        c.from("dm_ma_benh").select("ma,mo_ta"),
+        c.from("dm_nhom_tuoi").select("ma,mo_ta").order("ma",{ascending:true})
+      ]);
+    })
+    .then(function(res){
+      var k=res[0],b=res[1],t=res[2];
+      if(k&&!k.error&&k.data&&k.data.length)KHOA=k.data.map(function(x){return x.ten;});
+      if(b&&!b.error&&b.data&&b.data.length)DN_BENH=b.data.map(function(x){return [x.ma,x.mo_ta];});
+      if(t&&!t.error&&t.data&&t.data.length)DN_TUOI=t.data.map(function(x){return x.mo_ta;});
+      state.src="db"; render();
+    })
+    .catch(function(e){ console.error("[admin] boot lỗi:",e); state.src="mock"; render();
+      toast("Không đọc được Supabase — đang hiển thị dữ liệu mẫu"); });
+}
+
+init();
+})();
+</script>
+</body>
+</html>

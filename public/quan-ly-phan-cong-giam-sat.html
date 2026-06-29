@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý căn tin – Phân công & Giám sát</title>
+<style>
+  :root{
+    --green:#16a34a;--green-d:#15803d;--red:#dc2626;--red-d:#b91c1c;--amber:#f59e0b;
+    --amber-bg:#fef3c7;--blue:#2563eb;--blue-bg:#eff6ff;--ink:#0f172a;--muted:#64748b;
+    --line:#e2e8f0;--bg:#f1f5f9;--card:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .app{max-width:1140px;margin:0 auto;padding:0 16px 60px}
+  /* Header */
+  .hd{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:18px 0 14px}
+  .hd h1{font-size:20px;margin:0;display:flex;align-items:center;gap:8px}
+  .hd .role{font-size:12.5px;color:var(--muted)}
+  .hd .spacer{flex:1}
+  .hd select{font-size:14px;font-weight:700;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .hd .date{font-size:12.5px;color:var(--muted)}
+  /* Tabs */
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tabs button{border:0;background:none;padding:12px 18px;font-size:15px;font-weight:700;color:var(--muted);
+    border-bottom:3px solid transparent;cursor:pointer}
+  .tabs button.on{color:var(--blue);border-bottom-color:var(--blue)}
+  /* Week bar */
+  .weekbar{display:flex;gap:8px;overflow-x:auto;padding:2px 0 16px}
+  .daychip{flex:0 0 auto;min-width:80px;text-align:center;border:1.5px solid var(--line);border-radius:12px;
+    padding:9px 10px;cursor:pointer;background:#fff;position:relative}
+  .daychip:hover{border-color:#cbd5e1}
+  .daychip.on{border-color:var(--blue);background:var(--blue-bg)}
+  .daychip .dn{font-size:12px;font-weight:800;color:var(--muted)}
+  .daychip.on .dn{color:var(--blue)}
+  .daychip .dd{font-size:13.5px;font-weight:800;margin-top:2px}
+  .daychip .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:99px;background:var(--green);display:none}
+  .daychip.has .dot{display:block}
+  .daychip.today{box-shadow:0 0 0 2px #bfdbfe inset}
+  /* Banner */
+  .banner{border-radius:12px;padding:11px 14px;font-size:13.5px;font-weight:600;margin-bottom:14px;display:none}
+  .banner.warn{display:block;background:var(--amber-bg);color:#92400e;border:1px solid #fcd34d}
+  .banner.ok{display:block;background:#dcfce7;color:var(--green-d);border:1px solid #86efac}
+  .banner ul{margin:6px 0 0;padding-left:20px}
+  /* Section title */
+  .sec{font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin:6px 2px 10px}
+  /* Assign table */
+  .assign{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .arow{display:grid;grid-template-columns:1.4fr 1.6fr 0.8fr 1.4fr;gap:12px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .arow:last-child{border-bottom:0}
+  .arow.head{background:#f8fafc;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .zname{font-weight:800;font-size:15px}
+  .zdet{font-size:12.5px;color:var(--muted)}
+  .plan{font-weight:800;font-size:15px;text-align:center}
+  .plan small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+  .arow select{width:100%;font-size:14px;padding:10px 11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-weight:600}
+  .arow select.empty{border-color:var(--amber);background:#fffbeb}
+  .arow select.dup{border-color:var(--red);background:#fef2f2}
+  /* Bench */
+  .bench{margin-top:16px;background:#fff;border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
+  .bench .lbl{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .pchip{font-size:12.5px;font-weight:700;background:#eef2ff;color:#3730a3;padding:6px 11px;border-radius:99px}
+  .pchip.none{background:#f1f5f9;color:var(--muted)}
+  /* Buttons */
+  .actbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .btn{border:0;border-radius:11px;padding:12px 18px;font-size:14px;font-weight:800;cursor:pointer}
+  .btn.pri{background:var(--blue);color:#fff}
+  .btn.pri:active{background:#1d4ed8}
+  .btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  /* Summary cards */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+  .mc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .mc .k{font-size:12.5px;color:var(--muted);font-weight:600}
+  .mc .v{font-size:26px;font-weight:900;margin-top:4px;line-height:1.1}
+  .mc .v small{font-size:14px;font-weight:800;color:var(--muted)}
+  .mc.g .v{color:var(--green-d)} .mc.r .v{color:var(--red-d)} .mc.a .v{color:#b45309}
+  .obar{height:11px;background:#e5e9f0;border-radius:99px;overflow:hidden;margin:14px 0 22px}
+  .obar > i{display:block;height:100%;background:var(--green);width:0;transition:width .4s}
+  /* Zone grid */
+  .zgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .zcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;transition:.15s}
+  .zcard:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(37,99,235,.08)}
+  .zcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .zcard .zn{font-weight:800;font-size:15px}
+  .zcard .nv{font-size:12.5px;color:var(--blue);font-weight:700;margin-top:2px}
+  .zcard .nv.no{color:var(--amber)}
+  .st{font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap}
+  .st.done{background:#dcfce7;color:var(--green-d)}
+  .st.near{background:var(--blue-bg);color:#1e40af}
+  .st.going{background:#f1f5f9;color:#475569}
+  .st.slow{background:#fee2e2;color:var(--red-d)}
+  .zbar{height:9px;background:#e5e9f0;border-radius:99px;overflow:hidden;margin:12px 0 9px}
+  .zbar > i{display:block;height:100%;border-radius:99px;transition:width .4s}
+  .zmeta{display:flex;justify-content:space-between;font-size:12.5px}
+  .zmeta b{font-size:15px}
+  .zmeta .mut{color:var(--muted)}
+  .zmeta .fail{color:var(--red-d);font-weight:700}
+  .upd{font-size:11px;color:#94a3b8;margin-top:8px}
+  /* Modal */
+  .ov{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:50;display:none;align-items:center;justify-content:center;padding:16px}
+  .ov.show{display:flex}
+  .modal{background:#fff;width:100%;max-width:560px;max-height:84vh;overflow:auto;border-radius:16px;padding:18px}
+  .modal h3{margin:0 0 2px;font-size:17px}
+  .modal .msub{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .mli{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .mli .nm{font-weight:700;font-size:14px}
+  .mli .lc{font-size:12px;color:var(--muted)}
+  .mclose{margin-top:14px;width:100%;border:0;background:#f1f5f9;border-radius:11px;padding:12px;font-weight:800;cursor:pointer}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0f172a;color:#fff;font-size:13.5px;
+    font-weight:600;padding:11px 20px;border-radius:99px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  @media(max-width:760px){
+    .arow{grid-template-columns:1fr;gap:6px;padding:14px}
+    .arow.head{display:none}
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .zgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hd">
+    <div>
+      <h1>🧭 Quản lý căn tin</h1>
+      <div class="role">Bếp dịch vụ · Phân công & Giám sát giao suất</div>
+    </div>
+    <div class="spacer"></div>
+    <select id="cuv" onchange="onCuv()">
+      <option value="Trưa">Cữ Trưa (10:30–12:00)</option>
+      <option value="Sáng">Cữ Sáng (06:00–07:30)</option>
+      <option value="Chiều">Cữ Chiều (16:30–18:00)</option>
+    </select>
+    <span class="date" id="date"></span>
+  </div>
+
+  <div class="weekbar" id="weekbar"></div>
+
+  <div class="tabs">
+    <button id="tabA" class="on" onclick="show('A')">📋 Phân công cữ</button>
+    <button id="tabB" onclick="show('B')">📊 Giám sát tiến độ</button>
+  </div>
+
+  <!-- ===== TAB A: PHÂN CÔNG ===== -->
+  <div id="viewA">
+    <div class="banner" id="banA"></div>
+    <div class="sec">Gán 1 nhân viên cho mỗi khu vực — cữ <span id="cuvA"></span></div>
+    <div class="assign" id="assign"></div>
+
+    <div class="bench">
+      <div class="lbl">Nhân viên chưa phân công (dự phòng)</div>
+      <div class="chips" id="bench"></div>
+    </div>
+
+    <div class="actbar">
+      <button class="btn pri" id="saveBtn" onclick="saveAssign()">✓ Lưu phân công ngày/cữ này</button>
+      <button class="btn ghost" onclick="applyWeek()">📅 Áp cho cả tuần (cùng cữ)</button>
+      <button class="btn ghost" onclick="saveTemplate()">💾 Lưu làm mẫu mặc định</button>
+      <button class="btn ghost" onclick="applyTemplate()">↺ Áp mẫu mặc định</button>
+    </div>
+  </div>
+
+  <!-- ===== TAB B: GIÁM SÁT ===== -->
+  <div id="viewB" style="display:none">
+    <div class="banner" id="banB"></div>
+    <div class="cards">
+      <div class="mc"><div class="k">Tổng suất cữ</div><div class="v" id="mTot">0</div></div>
+      <div class="mc g"><div class="k">Đã giao</div><div class="v"><span id="mOk">0</span> <small id="mPct">0%</small></div></div>
+      <div class="mc r"><div class="k">Thất bại</div><div class="v" id="mFail">0</div></div>
+      <div class="mc a"><div class="k">Suất trả về bếp</div><div class="v" id="mRet">0</div></div>
+    </div>
+    <div class="obar"><i id="oBar"></i></div>
+
+    <div class="sec" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Tiến độ theo khu vực</span>
+      <button class="btn ghost" style="padding:8px 14px;font-size:12.5px" onclick="simulate()">▶ Mô phỏng cập nhật realtime</button>
+    </div>
+    <div class="zgrid" id="zgrid"></div>
+  </div>
+</div>
+
+<!-- Modal drill -->
+<div class="ov" id="ov" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="mTitle"></h3>
+    <div class="msub" id="mSub"></div>
+    <div id="mList"></div>
+    <button class="mclose" onclick="closeModal()">Đóng</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Dữ liệu nền ===== */
+const STAFF = [
+  {id:'NV01',name:'Nguyễn Văn An'},{id:'NV02',name:'Trần Thị Bình'},
+  {id:'NV03',name:'Lê Hoàng Cường'},{id:'NV04',name:'Phạm Thị Dung'},
+  {id:'NV05',name:'Võ Minh Đức'},{id:'NV06',name:'Đặng Thị Hoa'},
+  {id:'NV07',name:'Bùi Văn Khang'},{id:'NV08',name:'Hồ Thị Lan'},
+  {id:'NV09',name:'Ngô Văn Minh'},{id:'NV10',name:'Đỗ Thị Nga'}
+];
+const ZONES = [
+  {id:'KV1',name:'Khu 1',detail:'Tầng 2 · Khoa Khám',planned:62},
+  {id:'KV2',name:'Khu 2',detail:'Tầng 3 · Hô hấp',planned:78},
+  {id:'KV3',name:'Khu 3',detail:'Tầng 3 · Tim mạch',planned:55},
+  {id:'KV4',name:'Khu 4',detail:'Tầng 4 · Tiêu hoá',planned:84},
+  {id:'KV5',name:'Khu 5',detail:'Tầng 4 · Nội tổng hợp',planned:70},
+  {id:'KV6',name:'Khu 6',detail:'Tầng 5 · Ngoại',planned:66},
+  {id:'KV7',name:'Khu 7',detail:'Tầng 6 · Sản – Nhi',planned:58}
+];
+/* mẫu mặc định: KV1..KV7 -> NV01..NV07 */
+let template = {KV1:'NV01',KV2:'NV02',KV3:'NV03',KV4:'NV04',KV5:'NV05',KV6:'NV06',KV7:'NV07'};
+
+/* ===== Tuần & ngày ===== */
+function buildWeek(){
+  const now=new Date(); const lbl=['CN','T2','T3','T4','T5','T6','T7']; const arr=[];
+  for(let k=-3;k<=3;k++){const d=new Date(now); d.setDate(now.getDate()+k);
+    arr.push({i:k+3,label:lbl[d.getDay()],dd:('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2),
+      isToday:k===0});}
+  return arr;   // hôm nay ở giữa (vị trí 3): 3 ngày trước + hôm nay + 3 ngày sau
+}
+const WEEK = buildWeek();
+let curDay = (WEEK.find(d=>d.isToday)||WEEK[0]).i;
+let curCuv = 'Trưa';
+let plans = {};               // key "day|cữ" -> phân công
+let savedKeys = new Set();
+let assign = {};              // bản làm việc hiện tại
+let saved = false;
+let prog = {};                // tiến độ theo khu
+
+function key(){return curDay+'|'+curCuv;}
+function loadAssign(){return plans[key()]?{...plans[key()]}:{...template};}
+
+function nameOf(id){const s=STAFF.find(x=>x.id===id);return s?s.name:'';}
+function nowHM(){const d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+
+function renderWeek(){
+  document.getElementById('weekbar').innerHTML = WEEK.map(d=>{
+    const has = ['Sáng','Trưa','Chiều'].some(c=>savedKeys.has(d.i+'|'+c));
+    return `<div class="daychip ${d.i===curDay?'on':''} ${has?'has':''} ${d.isToday?'today':''}" onclick="selectDay(${d.i})">
+      <div class="dn">${d.label}</div><div class="dd">${d.dd}</div><span class="dot"></span></div>`;
+  }).join('');
+}
+function selectDay(i){
+  curDay=i; assign=loadAssign(); saved=savedKeys.has(key());
+  renderWeek(); renderAssign(); initProg();
+  toast('Ngày '+WEEK[i].label+' '+WEEK[i].dd);
+}
+
+/* ===== TAB A ===== */
+function renderAssign(){
+  document.getElementById('cuvA').textContent = WEEK[curDay].label+' '+WEEK[curDay].dd+' · cữ '+curCuv;
+  // đếm trùng
+  const used = {};
+  Object.values(assign).forEach(v=>{ if(v) used[v]=(used[v]||0)+1; });
+  let html = `<div class="arow head"><div>Khu vực</div><div>Phạm vi</div><div>Dự kiến</div><div>Nhân viên giao</div></div>`;
+  ZONES.forEach(z=>{
+    const v = assign[z.id]||'';
+    const cls = !v ? 'empty' : (used[v]>1?'dup':'');
+    const opts = ['<option value="">— Chọn nhân viên —</option>']
+      .concat(STAFF.map(s=>`<option value="${s.id}" ${s.id===v?'selected':''}>${s.name}</option>`)).join('');
+    html += `<div class="arow">
+      <div><div class="zname">${z.name}</div></div>
+      <div class="zdet">${z.detail}</div>
+      <div class="plan">${z.planned}<small>suất</small></div>
+      <div><select class="${cls}" onchange="setAssign('${z.id}',this.value)">${opts}</select></div>
+    </div>`;
+  });
+  document.getElementById('assign').innerHTML = html;
+  renderBench();
+  validateAssign();
+}
+function renderBench(){
+  const usedIds = new Set(Object.values(assign).filter(Boolean));
+  const free = STAFF.filter(s=>!usedIds.has(s.id));
+  document.getElementById('bench').innerHTML = free.length
+    ? free.map(s=>`<span class="pchip">${s.name}</span>`).join('')
+    : '<span class="pchip none">Không còn nhân viên dự phòng</span>';
+}
+function setAssign(zid,val){ assign[zid]=val; saved=false; renderAssign(); }
+
+function issues(){
+  const list=[];
+  const empties=ZONES.filter(z=>!assign[z.id]).map(z=>z.name);
+  if(empties.length) list.push('Chưa gán nhân viên cho: '+empties.join(', '));
+  const cnt={}; Object.entries(assign).forEach(([z,v])=>{if(v)(cnt[v]=cnt[v]||[]).push(z)});
+  Object.entries(cnt).forEach(([v,zs])=>{ if(zs.length>1) list.push(nameOf(v)+' bị gán trùng '+zs.length+' khu ('+zs.join(', ')+')'); });
+  return list;
+}
+function validateAssign(){
+  const b=document.getElementById('banA'); const errs=issues();
+  document.getElementById('saveBtn').disabled = errs.length>0;
+  if(errs.length){ b.className='banner warn'; b.innerHTML='⚠️ Cần xử lý trước khi lưu:<ul>'+errs.map(e=>'<li>'+e+'</li>').join('')+'</ul>'; }
+  else if(saved){ b.className='banner ok'; b.innerHTML='✓ Đã lưu phân công '+WEEK[curDay].label+' '+WEEK[curDay].dd+' · cữ '+curCuv+'.'; }
+  else{ b.className='banner'; b.innerHTML=''; }
+}
+function saveAssign(){
+  if(issues().length) return;
+  plans[key()]={...assign}; savedKeys.add(key()); saved=true;
+  initProg(); renderWeek(); validateAssign();
+  toast('✓ Đã lưu '+WEEK[curDay].label+' · cữ '+curCuv);
+}
+function applyWeek(){
+  if(issues().length){ toast('Xử lý lỗi phân công trước đã'); return; }
+  WEEK.forEach(d=>{ plans[d.i+'|'+curCuv]={...assign}; savedKeys.add(d.i+'|'+curCuv); });
+  saved=true; renderWeek(); validateAssign();
+  toast('📅 Đã áp cho cả tuần — cữ '+curCuv);
+}
+function saveTemplate(){ template={...assign}; toast('💾 Đã lưu mẫu mặc định'); }
+function applyTemplate(){ assign={...template}; saved=false; renderAssign(); toast('↺ Đã áp mẫu mặc định'); }
+
+/* ===== TAB B ===== */
+function initProg(){
+  prog={};
+  ZONES.forEach(z=>{
+    const total=z.planned;
+    const delivered=Math.round(total*(0.3+Math.random()*0.5));
+    const failed=Math.round(delivered*0.05*Math.random());
+    prog[z.id]={total,delivered,failed,returned:Math.round(failed*0.6),ts:nowHM()};
+  });
+}
+function zoneStatus(p){
+  const pct=p.delivered/p.total;
+  if(pct>=1) return {k:'done',t:'Hoàn tất'};
+  if(pct>=0.7) return {k:'near',t:'Sắp xong'};
+  if(pct>=0.45) return {k:'going',t:'Đang giao'};
+  return {k:'slow',t:'Chậm'};
+}
+function barColor(k){return k==='done'?'#16a34a':k==='near'?'#2563eb':k==='slow'?'#dc2626':'#f59e0b';}
+
+function renderMonitor(){
+  if(!Object.keys(prog).length) initProg();
+  let tot=0,ok=0,fail=0,ret=0;
+  ZONES.forEach(z=>{const p=prog[z.id];tot+=p.total;ok+=p.delivered;fail+=p.failed;ret+=p.returned;});
+  document.getElementById('mTot').textContent=tot;
+  document.getElementById('mOk').textContent=ok;
+  document.getElementById('mPct').textContent=tot?Math.round(ok/tot*100)+'%':'0%';
+  document.getElementById('mFail').textContent=fail;
+  document.getElementById('mRet').textContent=ret;
+  document.getElementById('oBar').style.width=tot?(ok/tot*100)+'%':'0%';
+
+  // cảnh báo tổng
+  const alerts=[];
+  ZONES.forEach(z=>{
+    const p=prog[z.id]; const s=zoneStatus(p);
+    if(s.k==='slow') alerts.push('🐢 '+z.name+' ('+z.detail+') đang chậm — '+nameOf(assign[z.id]));
+    if(p.delivered && p.failed/Math.max(p.delivered,1)>0.1) alerts.push('❗ '+z.name+' tỷ lệ thất bại cao ('+p.failed+'/'+p.delivered+')');
+  });
+  const b=document.getElementById('banB');
+  if(alerts.length){ b.className='banner warn'; b.innerHTML='Cần chú ý:<ul>'+alerts.map(a=>'<li>'+a+'</li>').join('')+'</ul>'; }
+  else{ b.className='banner ok'; b.innerHTML='✓ Các khu đang đúng tiến độ.'; }
+
+  // lưới khu
+  let html='';
+  ZONES.forEach(z=>{
+    const p=prog[z.id]; const s=zoneStatus(p); const pct=Math.round(p.delivered/p.total*100);
+    const left=p.total-p.delivered-p.failed;
+    const nv=assign[z.id];
+    html+=`<div class="zcard" onclick="openZone('${z.id}')">
+      <div class="top">
+        <div>
+          <div class="zn">${z.name} · <span style="font-weight:600;color:var(--muted);font-size:13px">${z.detail}</span></div>
+          <div class="nv ${nv?'':'no'}">${nv?'👤 '+nameOf(nv):'⚠️ Chưa gán nhân viên'}</div>
+        </div>
+        <span class="st ${s.k}">${s.t}</span>
+      </div>
+      <div class="zbar"><i style="width:${pct}%;background:${barColor(s.k)}"></i></div>
+      <div class="zmeta">
+        <span><b>${p.delivered}</b><span class="mut">/${p.total} đã giao (${pct}%)</span></span>
+        <span class="mut">Còn <b style="color:var(--ink)">${left<0?0:left}</b></span>
+        <span class="fail">✗ ${p.failed}</span>
+      </div>
+      <div class="upd">🕒 Cập nhật ${p.ts}</div>
+    </div>`;
+  });
+  document.getElementById('zgrid').innerHTML=html;
+}
+
+function simulate(){
+  ZONES.forEach(z=>{
+    const p=prog[z.id];
+    const room=p.total-p.delivered-p.failed;
+    if(room>0){
+      const step=Math.min(room,Math.ceil(p.total*(0.05+Math.random()*0.12)));
+      const newFail=Math.random()<0.3?1:0;
+      p.delivered+=Math.max(0,step-newFail);
+      p.failed+=newFail; if(newFail&&Math.random()<0.6)p.returned+=1;
+      p.ts=nowHM();
+    }
+  });
+  renderMonitor(); toast('🔄 Đã cập nhật tiến độ');
+}
+
+/* ===== Modal ===== */
+function openZone(zid){
+  const z=ZONES.find(x=>x.id===zid); const p=prog[zid];
+  document.getElementById('mTitle').textContent=z.name+' · '+z.detail;
+  document.getElementById('mSub').textContent='Phụ trách: '+(assign[zid]?nameOf(assign[zid]):'(chưa gán)')+
+    ' · Đã giao '+p.delivered+'/'+p.total+' · Thất bại '+p.failed;
+  // danh sách suất mẫu
+  const names=['Nguyễn V. A','Trần T. B','Lê H. C','Phạm T. D','Võ M. Đ','Đặng T. H','Bùi V. K','Hồ T. L','Ngô V. M','Đỗ T. N'];
+  let h='';
+  for(let i=0;i<10;i++){
+    const st = i<7?'done':(i===7?'fail':'pend');
+    const badge = st==='done'?'<span class="st done">✅ Đã giao</span>':
+                  st==='fail'?'<span class="st slow">❌ Thất bại</span>':
+                  '<span class="st going">⏳ Cần giao</span>';
+    h+=`<div class="mli"><div><div class="nm">${names[i]}</div>
+      <div class="lc">BN-10${300+i} · Phòng ${z.id.slice(2)}0${i+1} · Giường ${i%4+1}</div></div>${badge}</div>`;
+  }
+  document.getElementById('mList').innerHTML=h;
+  document.getElementById('ov').classList.add('show');
+}
+function closeModal(){document.getElementById('ov').classList.remove('show');}
+
+/* ===== Chung ===== */
+function show(t){
+  document.getElementById('tabA').classList.toggle('on',t==='A');
+  document.getElementById('tabB').classList.toggle('on',t==='B');
+  document.getElementById('viewA').style.display=t==='A'?'block':'none';
+  document.getElementById('viewB').style.display=t==='B'?'block':'none';
+  if(t==='A') renderAssign(); else renderMonitor();
+}
+function onCuv(){
+  curCuv=document.getElementById('cuv').value;
+  assign=loadAssign(); saved=savedKeys.has(key());
+  renderAssign(); renderWeek(); initProg();
+  if(document.getElementById('viewB').style.display!=='none') renderMonitor();
+  toast('Đã chuyển sang cữ '+curCuv);
+}
+
+let toastT;
+function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),1800);}
+
+document.getElementById('date').textContent=new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+assign=loadAssign();
+initProg();
+renderWeek();
+renderAssign();
+</script>
+</body>
+</html>

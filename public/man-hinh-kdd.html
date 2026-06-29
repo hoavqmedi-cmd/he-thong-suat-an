@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KDD — Duyệt &amp; chuyển sản xuất theo cữ</title>
+<style>
+  :root{
+    --bg:#F0F4F8;--white:#FFFFFF;--border:#DDE3EA;--borderLight:#EEF2F5;
+    --header:#0D1F2D;--primary:#0E6BA8;--primaryLight:#E6F2FA;--primaryMid:#C2DCF0;
+    --green:#0E8A5F;--greenLight:#E8F5EE;--orange:#E8650A;--orangeLight:#FFF0E6;
+    --red:#C0392B;--redLight:#FDECEA;--yellow:#9A7200;--yellowLight:#FFFBEA;
+    --gray:#546E7A;--grayLight:#EEF2F4;--grayMid:#8A9BB0;
+    --text:#0D1F2D;--textMid:#4A5568;--textLight:#8A9BB0;--dimBg:#F4F6F8;--dimTx:#AEB8C4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}
+  .hd{background:var(--header);padding:14px 18px 0}
+  .hd .k{font-size:11px;font-weight:700;color:#5B8FAA;letter-spacing:1px}
+  .hd .t{font-size:18px;font-weight:800;color:#fff;margin:2px 0 10px}
+  .tabs{display:flex;gap:4px}
+  .tab{padding:10px 12px;cursor:pointer;font-size:12.5px;font-weight:500;color:#8FA9BC;border-bottom:2.5px solid transparent}
+  .tab.on{color:#fff;font-weight:800;border-bottom-color:#5B8FAA}
+  .wrap{padding:16px;max-width:1180px;margin:0 auto}
+  .card{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+  .row{display:flex;align-items:center}.between{justify-content:space-between}
+  .gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.wrapf{flex-wrap:wrap}
+  .cu{font-size:20px;font-weight:800}
+  .pill{font-size:11px;font-weight:700;color:var(--primary);background:var(--primaryLight);border-radius:6px;padding:2px 8px;display:inline-block}
+  .sub{font-size:11px;color:var(--textLight)}
+  .badge{font-size:10px;font-weight:700;border-radius:99px;padding:3px 9px}
+  .chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;margin:0 4px 4px 0}
+  .chip .n{background:#fff;border-radius:4px;padding:0 5px}
+  .bp-dv{background:var(--primaryLight);color:var(--primary)}
+  .bp-bl{background:var(--greenLight);color:var(--green)}
+  .bp-ss{background:var(--orangeLight);color:var(--orange)}
+  .lbadge{border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px;display:inline-block}
+  button{font-family:inherit;cursor:pointer}
+  .b{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--textMid)}
+  .b.out{border-color:var(--primary);color:var(--primary)}
+  .b.pri{border:none;background:var(--primary);color:#fff}
+  .b.grn{border:none;background:var(--green);color:#fff}
+  .b.red{border-color:var(--red);color:var(--red);background:var(--redLight)}
+  .b.sm{padding:5px 9px;font-size:11px}
+  .b.block{background:var(--grayLight);color:var(--textLight)}
+  .muted{text-align:center;padding:50px 0;color:var(--textLight)}
+  .split{display:block}.queue{margin:0}.detailpane{display:none}
+  @media(min-width:1024px){
+    .split{display:flex;gap:16px;align-items:flex-start}
+    .queue{width:340px;flex:none}
+    .detailpane{display:block;flex:1;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow:auto}
+  }
+  .qrow{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;cursor:pointer}
+  .qrow.sel{border-color:var(--primary);box-shadow:0 0 0 3px rgba(14,107,168,.12)}
+  .qrow.appr{border-color:var(--primaryMid)}
+  .detailpane.open{display:block}
+  @media(max-width:1023px){.detailpane.open{position:fixed;inset:0;background:var(--bg);z-index:60;overflow:auto;padding:12px;max-height:none}}
+  .tool{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tool input,.tool select{font-family:inherit;font-size:12px;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  .tool input{flex:1;min-width:120px}
+  .kacc{border:1px solid var(--borderLight);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .khead{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;background:#fff}
+  .khead:hover{background:var(--grayLight)}
+  .kbody{padding:4px 12px 10px;border-top:1px solid var(--borderLight)}
+  .trow{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--borderLight)}
+  .trow:last-child{border-bottom:none}
+  .bninfo{flex:1;cursor:pointer;border-radius:8px;padding:2px 4px}
+  .bninfo:hover{background:var(--primaryLight)}
+  .tick{width:20px;height:20px;border-radius:5px;margin-top:2px;flex-shrink:0;border:2px solid var(--grayMid);background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+  .tick.on{border-color:var(--primary);background:var(--primary)}
+  .flag{font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;background:var(--yellowLight);color:var(--yellow);margin-left:5px}
+  .gc{font-size:10.5px;color:var(--textMid);margin-top:4px}
+  .reason{width:100%;margin-top:6px;padding:6px 9px;border-radius:7px;border:1.5px solid var(--red);font-size:11px;font-family:inherit}
+  .prog{font-size:11px;font-weight:700;color:var(--green);background:var(--greenLight);border-radius:99px;padding:2px 8px}
+  .prog.part{color:var(--orange);background:var(--orangeLight)}
+  .ov{position:fixed;inset:0;background:rgba(13,31,45,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+  .mod{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(13,31,45,.18)}
+  .mh{padding:15px 18px 11px;border-bottom:1px solid var(--borderLight);position:sticky;top:0;background:#fff}
+  .x{background:var(--grayLight);border:none;border-radius:50%;width:30px;height:30px;font-size:15px;color:var(--textMid)}
+  .sechead{font-size:11px;font-weight:800;color:var(--textLight);letter-spacing:.5px;margin:14px 0 8px}
+  .culine{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--borderLight);border-radius:9px;padding:8px 11px;margin-bottom:7px}
+  .pane-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:10px 0;margin-top:6px;display:flex;gap:10px}
+  .mfoot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 18px;display:flex;gap:10px;align-items:center}
+  .dim{background:var(--dimBg);border-radius:8px;padding:7px 10px;margin-top:4px;opacity:.8;font-size:11px;color:var(--dimTx)}
+  .sent-cell{flex:1 1 30%;min-width:150px;border-radius:9px;padding:9px 11px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);white-space:nowrap;z-index:200}
+  .rfilter{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .frow{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap}
+  .flbl{font-size:11px;font-weight:800;color:var(--textLight);width:62px;flex:none;padding-top:6px}
+  .fchip{font-size:11px;font-weight:700;border:1.5px solid var(--border);border-radius:99px;padding:3px 10px;cursor:pointer;background:#fff;color:var(--textMid)}
+  .fchip.on{border-color:var(--primary);background:var(--primaryLight);color:var(--primary)}
+  .fkhoabox{display:flex;flex-wrap:wrap;gap:5px;max-height:96px;overflow:auto;flex:1}
+  .dmt{width:100%;border-collapse:collapse;font-size:12px}
+  .dmt th{text-align:left;color:var(--textLight);font-weight:700;padding:6px 8px;white-space:nowrap}
+  .dmt td{padding:6px 8px;border-top:1px solid var(--borderLight);vertical-align:top}
+  .dmt input.fcell{width:60px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit}
+</style>
+<!-- Supabase — cấu hình + lớp kết nối GỘP THẲNG vào file để tránh lệch cache -->
+<script>
+/* ===== DEMO: ép GIỜ HIỆN TẠI về HÔM NAY 11:00 để mở khóa cữ =====
+   Sửa GIO_DEMO/PHUT_DEMO nếu cần giờ khác (vd 7 để mở cữ Trưa).
+   XÓA cả block này sau khi demo xong. */
+(function(){
+  var GIO_DEMO = 11, PHUT_DEMO = 0;
+  var _Date = Date;
+  var t = new _Date(); t.setHours(GIO_DEMO, PHUT_DEMO, 0, 0);
+  var OFFSET = t.getTime() - _Date.now();
+  function D(a,b,c,d,e,f,g){
+    if (this instanceof D){
+      switch(arguments.length){
+        case 0: return new _Date(_Date.now()+OFFSET);
+        case 1: return new _Date(a);
+        default: return new _Date(a,b,c,d,e,f,g);
+      }
+    }
+    return new _Date(_Date.now()+OFFSET).toString();
+  }
+  D.now=function(){return _Date.now()+OFFSET;};
+  D.parse=_Date.parse; D.UTC=_Date.UTC; D.prototype=_Date.prototype;
+  window.Date=D;
+  try{console.log("[DEMO] Giờ giả định:", new Date().toString());}catch(e){}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anonKey: "sb_publishable_z4W6NoLBqDapelJ8C7Ov_g_u0SZlxwm" };
+(function () {
+  "use strict";
+  var CONFIG = window.SUPABASE_CONFIG || {};
+  var URL = CONFIG.url, KEY = CONFIG.anonKey, TABLE = "dang_ky_suat", client = null;
+  function configured() { return !!(URL && KEY && URL.indexOf("http") === 0 && URL.indexOf("DAN_") < 0 && KEY.indexOf("DAN_") < 0); }
+  function getClient() {
+    if (client) return client;
+    if (!configured()) return null;
+    if (!window.supabase || !window.supabase.createClient) { console.error("[suat-db] Chưa nạp supabase-js"); return null; }
+    client = window.supabase.createClient(URL, KEY); return client;
+  }
+  window.SUAT_DB = {
+    configured: configured,
+    insert: function (rows) { var c = getClient(); if (!c) return Promise.resolve({ error: { message: "Chưa cấu hình Supabase" } }); return c.from(TABLE).insert(rows); },
+    fetchChoXuLy: function () { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); return c.from(TABLE).select("*").eq("trang_thai", "khoa_gui").order("created_at", { ascending: true }); },
+    updateTrangThai: function (ids, trangThai, lyDo) { var c = getClient(); if (!c || !ids || !ids.length) return Promise.resolve({ error: null }); var patch = { trang_thai: trangThai }; if (lyDo != null) patch.ly_do_tu_choi = lyDo; return c.from(TABLE).update(patch).in("id", ids).then(function (r) { return r; }); },
+    fetchBenhNhan: function (loai) { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); var q = c.from("benh_nhan").select("*"); if (loai) q = q.eq("loai_bn", loai); return q.order("ma_bn", { ascending: true }); },
+    updateBenhNhan: function (maBn, loai, patch) { var c = getClient(); if (!c || !maBn) return Promise.resolve({ error: null }); var q = c.from("benh_nhan").update(patch).eq("ma_bn", maBn); if (loai) q = q.eq("loai_bn", loai); return q.then(function (r) { return r; }); }
+  };
+})();
+</script>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast"></div>
+<script>
+(function(){
+"use strict";
+
+var LOAI={
+  com_dv:{ten:"Cơm DV",full:"Cơm dịch vụ",bp:"bep_dv"},
+  chao_dv:{ten:"Cháo DV",full:"Cháo dịch vụ",bp:"bep_dv"},
+  com_bl:{ten:"Cơm BL",full:"Cơm bệnh lý",bp:"bep_benh_ly"},
+  chao_bl:{ten:"Cháo BL",full:"Cháo bệnh lý",bp:"bep_benh_ly"},
+  sua_bt:{ten:"Sữa BT",full:"Sữa BT",bp:"sua_soup"},
+  sua_db:{ten:"Sữa ĐB",full:"Sữa ĐB",bp:"sua_soup"},
+  sonde:{ten:"Sonde",full:"Soup sonde",bp:"sua_soup"}
+};
+var BO_PHAN={
+  bep_dv:{ten:"Bếp phòng dịch vụ",icon:"🍚",cls:"bp-dv",loais:["com_dv","chao_dv"]},
+  bep_benh_ly:{ten:"Bếp cơm bệnh lý",icon:"🥣",cls:"bp-bl",loais:["com_bl","chao_bl"]},
+  sua_soup:{ten:"Phòng sữa - soup",icon:"🍼",cls:"bp-ss",loais:["sua_bt","sua_db","sonde"]}
+};
+var NHOM_DV=["com_dv","chao_dv"], NHOM_BL=["com_bl","chao_bl","sua_bt","sua_db","sonde"];
+var ALL_LOAI=["com_dv","chao_dv","com_bl","chao_bl","sua_bt","sua_db","sonde"];
+
+var KHOA_LIST=["Nhi Tổng hợp","Tiêu hoá Nhi","Hô hấp Nhi","Sơ sinh","Sơ sinh non tháng","Ngoại Nhi","Chấn thương Nhi","Tim mạch Nhi","Thận - Nội tiết","Thần kinh Nhi","Huyết học","Ung bướu Nhi","Nhiễm","Hồi sức tích cực","Cấp cứu","Bỏng","Mắt","Tai Mũi Họng","Răng Hàm Mặt","Da liễu","Nội tiết Nhi","Phục hồi chức năng","Ngoại Thận-Niệu","Ngoại Thần kinh","Tim mạch can thiệp"];
+var M=["06:00","11:00","17:00"], S8=["03:00","06:00","09:00","12:00","15:00","18:00","21:00","00:00"], S4=["06:00","11:00","16:00","21:00"];
+var PROFILES=[
+  {w:20,items:[{loai:"com_dv",gios:M}]},{w:9,items:[{loai:"chao_dv",gios:M}]},
+  {w:15,items:[{loai:"com_bl",gios:M}]},{w:8,items:[{loai:"chao_bl",gios:M}]},
+  {w:16,items:[{loai:"sua_bt",gios:S8}]},{w:12,items:[{loai:"sua_db",gios:S8}]},
+  {w:8,items:[{loai:"sonde",gios:S4}]},{w:7,items:[{loai:"sua_db",gios:S8},{loai:"sonde",gios:S4}]}
+];
+var FLAGS=["Mới","Đổi chế độ","Dị ứng","Tạm ngưng"];
+var DIS=["TH","GM","TN","SD","DD","NK","TM"];
+var DIS_TEN={BT:"Bình thường",TH:"Tiêu hoá",GM:"Gan mật",TN:"Thận niệu",SD:"Suy dinh dưỡng",DD:"Đái tháo đường",NK:"Nhiễm khuẩn",TM:"Tim mạch"};
+var NHOM_TEN=["","Dưới 6 tháng","6–12 tháng","1–3 tuổi","4–6 tuổi","7–15 tuổi"];
+var SUA_BT_CODES=["SUA006","SUA007","SUA009","SUA011","SUA013"];
+var SUA_DB_CODES=["SUA020","SUA022","SUA023","SUA024","SUA025"];
+var SONDE_CODES=["BN-SS04","BN-SS05","BN-SS06"];
+var SUA_CAT=[
+ {ma:"SUA006",ten:"Sữa công thức số 1",loai:"BT",tuoi:[1],benh:[],bot:13,nuoc:90,tp:100,on:true},
+ {ma:"SUA007",ten:"Sữa công thức số 2",loai:"BT",tuoi:[1,2],benh:[],bot:14,nuoc:90,tp:100,on:true},
+ {ma:"SUA009",ten:"Sữa tăng trưởng",loai:"BT",tuoi:[2,3],benh:[],bot:15,nuoc:90,tp:100,on:true},
+ {ma:"SUA011",ten:"Sữa trẻ nhỏ",loai:"BT",tuoi:[3,4],benh:[],bot:20,nuoc:180,tp:200,on:true},
+ {ma:"SUA013",ten:"Sữa học đường",loai:"BT",tuoi:[4,5],benh:[],bot:22,nuoc:180,tp:200,on:true},
+ {ma:"SUA014",ten:"Sữa cao tuổi nhi",loai:"BT",tuoi:[5],benh:[],bot:24,nuoc:180,tp:200,on:true},
+ {ma:"SUA023",ten:"Sữa tiêu hoá",loai:"ĐB",tuoi:[3,4,5],benh:["TH"],bot:18,nuoc:170,tp:200,on:true},
+ {ma:"SUA021",ten:"Sữa gan mật",loai:"ĐB",tuoi:[2,3,4,5],benh:["GM"],bot:18,nuoc:170,tp:200,on:true},
+ {ma:"SUA020",ten:"Sữa thận niệu A",loai:"ĐB",tuoi:[3,4,5],benh:["TN"],bot:17,nuoc:170,tp:200,on:true},
+ {ma:"SUA024",ten:"Sữa thận niệu B",loai:"ĐB",tuoi:[1,2],benh:["TN"],bot:15,nuoc:90,tp:100,on:true},
+ {ma:"SUA010",ten:"Sữa suy dinh dưỡng A",loai:"ĐB",tuoi:[1,2,3],benh:["SD"],bot:16,nuoc:90,tp:100,on:true},
+ {ma:"SUA015",ten:"Sữa suy dinh dưỡng B",loai:"ĐB",tuoi:[4,5],benh:["SD"],bot:25,nuoc:180,tp:200,on:true},
+ {ma:"SUA019",ten:"Sữa đái tháo đường A",loai:"ĐB",tuoi:[4,5],benh:["DD"],bot:22,nuoc:180,tp:200,on:true},
+ {ma:"SUA025",ten:"Sữa đái tháo đường B",loai:"ĐB",tuoi:[2,3],benh:["DD"],bot:16,nuoc:120,tp:130,on:true},
+ {ma:"SUA022",ten:"Sữa cao năng lượng",loai:"ĐB",tuoi:[1,2,3,4,5],benh:["BT","NK","TM"],bot:20,nuoc:150,tp:170,on:true}
+];
+var SOUP_CAT=[
+ {ma:"SS-GA",ten:"Soup gà",nl:"Thịt gà 50g · Gạo 30g · Cà rốt 20g · Dầu ăn 5ml",tp:250,on:true},
+ {ma:"SS-HEO",ten:"Soup heo",nl:"Thịt heo 50g · Gạo 30g · Bí đỏ 20g · Dầu ăn 5ml",tp:250,on:true},
+ {ma:"SS-BO",ten:"Soup bò",nl:"Thịt bò 50g · Gạo 30g · Khoai tây 20g · Dầu ăn 5ml",tp:250,on:true},
+ {ma:"SS-BS",ten:"Soup bột sữa",nl:"Bột ngũ cốc 40g · Sữa bột 15g · Dầu ăn 5ml",tp:250,on:true}
+];
+
+var HO=["Nguyễn","Trần","Lê","Phạm","Hoàng","Huỳnh","Phan","Vũ","Đặng","Bùi","Đỗ","Ngô","Dương","Lý","Hồ","Đinh"];
+var TD=["Minh","Gia","Bảo","Khánh","Thảo","Quốc","Thanh","Ngọc","Hải","Tuấn","Nhật","Phương","Đức","Kim","Hữu"];
+var TEN=["Khôi","Ngọc","Long","An","Phúc","Hân","Vy","Bình","Châu","Duy","Nam","Linh","Trang","Hùng","Mai","Lan","Quân","Như","Thư","Tú"];
+function rnd(s){var x=Math.sin(s*99.13+7.7)*10000;return x-Math.floor(x);}
+function mkName(i){return HO[i%HO.length]+" "+TD[(i*3)%TD.length]+" "+TEN[(i*7)%TEN.length];}
+function pickProfile(r){var tot=0,i;for(i=0;i<PROFILES.length;i++)tot+=PROFILES[i].w;var x=r*tot,acc=0;for(i=0;i<PROFILES.length;i++){acc+=PROFILES[i].w;if(x<acc)return PROFILES[i];}return PROFILES[0];}
+function dobStr(nhom,seed){var y=nhom===1?2026:nhom===2?2025:nhom===3?2023:nhom===4?2021:(2011+Math.floor(rnd(seed)*7));var mo=1+Math.floor(rnd(seed+0.4)*12),d=1+Math.floor(rnd(seed+0.7)*27);return ("0"+d).slice(-2)+"/"+("0"+mo).slice(-2)+"/"+y;}
+
+var PATIENTS=[],pc=0;
+for(var ki=0;ki<KHOA_LIST.length;ki++){
+  var cnt=12+Math.floor(rnd(ki+1)*8);
+  for(var j=0;j<cnt;j++){
+    pc++;var seed=ki*100+j+1;
+    var items=pickProfile(rnd(seed)).items;
+    var hasBL=items.some(function(it){return LOAI[it.loai].bp!=="bep_dv";});
+    var hasDb=items.some(function(it){return it.loai==="sua_db";});
+    var nhom=1+Math.floor(rnd(seed+0.15)*5);
+    var kcal=300+nhom*110+Math.floor(rnd(seed+0.8)*80);
+    var chuY=rnd(seed+0.5)<0.13?FLAGS[Math.floor(rnd(seed+0.55)*FLAGS.length)]:null;
+    PATIENTS.push({
+      id:"BN"+("000"+pc).slice(-4),ten:mkName(pc),khoa:KHOA_LIST[ki],
+      phong:""+(100+Math.floor(rnd(seed+0.3)*40)),giuong:""+(1+Math.floor(rnd(seed+0.6)*6)),
+      khoaGui:rnd(seed+0.9)>0.06,chuY:chuY,nhom:nhom,dob:dobStr(nhom,seed),
+      dis:hasBL?DIS[Math.floor(rnd(seed+0.25)*DIS.length)]:"BT",
+      suaCode:(hasDb?SUA_DB_CODES:SUA_BT_CODES)[Math.floor(rnd(seed+0.35)*5)],
+      sondeCode:SONDE_CODES[Math.floor(rnd(seed+0.45)*3)],
+      choNem:rnd(seed+0.5)<0.5?"Nêm":"Không nêm",choXay:rnd(seed+0.52)<0.5?"Xay":"Không xay",
+      dd:{kcal:kcal,P:Math.round(kcal*0.15/4),L:Math.round(kcal*0.30/9),G:Math.round(kcal*0.55/4)},
+      ghiChu:chuY==="Dị ứng"?"Dị ứng đạm bò":(rnd(seed+0.65)<0.08?"Ăn chậm, theo dõi sặc":""),
+      items:items
+    });
+  }
+}
+var PMAP={};PATIENTS.forEach(function(p){PMAP[p.id]=p;});
+var SUAT=[];
+PATIENTS.forEach(function(p){p.items.forEach(function(it){it.gios.forEach(function(g){
+  SUAT.push({bnId:p.id,gio:g,loai:it.loai,khoaGui:p.khoaGui,khoa:p.khoa});
+});});});
+var ALL_CU=SUAT.map(function(s){return s.gio;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+
+var NOW_MIN=10*60+30;
+function cuMin(g){var a=g.split(":");return (+a[0])*60+(+a[1]);}
+function cuDiff(g){return (cuMin(g)-NOW_MIN+1440)%1440;}
+function diffLabel(g){var d=cuDiff(g),h=Math.floor(d/60),m=d%60;return h>0?(h+"g"+(m>0?" "+m+"p":"")):(m+"p");}
+function gioHienTai(){var n=new Date();return ("0"+n.getHours()).slice(-2)+":"+("0"+n.getMinutes()).slice(-2);}
+function buoiCuaCu(g){var h=cuMin(g)/60;if(h>=4&&h<11)return"Sáng";if(h>=11&&h<15)return"Trưa";return"Chiều-Tối";}
+function maCheDo(loai,p){
+  if(loai==="com_dv")return p.nhom+"BT·CPDV";if(loai==="chao_dv")return p.nhom+"BT·ChPDV";
+  if(loai==="com_bl")return p.nhom+p.dis+"·CBL";if(loai==="chao_bl")return p.nhom+p.dis+"·ChBL";
+  if(loai==="sua_bt"||loai==="sua_db")return p.suaCode;if(loai==="sonde")return p.sondeCode;return"";
+}
+function rowGhiChu(loais,p){
+  var parts=[];
+  if(loais.indexOf("chao_dv")>=0||loais.indexOf("chao_bl")>=0)parts.push(p.choXay+" · "+p.choNem);
+  if(loais.some(function(l){return LOAI[l].bp!=="bep_dv";})){var d=p.dd;parts.push("L"+d.L+" P"+d.P+" G"+d.G+" · "+d.kcal+" kcal");}
+  if(p.ghiChu)parts.push("📝 "+p.ghiChu);
+  return parts.join("  ·  ");
+}
+
+function bnTrongCu(cu,eli){
+  var rows=SUAT.filter(function(s){return s.gio===cu&&s.khoaGui===eli;});
+  var map={},out=[];
+  rows.forEach(function(r){
+    if(!map[r.bnId]){map[r.bnId]={bnId:r.bnId,khoa:r.khoa,loais:[]};out.push(map[r.bnId]);}
+    map[r.bnId].loais.push(r.loai);
+  });
+  return out;
+}
+function tongHopCu(cu){
+  var counts={};
+  SUAT.filter(function(s){return s.gio===cu&&s.khoaGui;}).forEach(function(r){counts[r.loai]=(counts[r.loai]||0)+1;});
+  return {counts:counts,chuaGui:bnTrongCu(cu,false).length,soBN:bnTrongCu(cu,true).length};
+}
+
+var state={tab:"cho",approved:{},sent:{},decision:{},reason:{},selCu:null,sentDetail:null,bnModal:null,
+  openKhoa:{},dq:"",fkhoa:"",floai:"",onlyFlag:false,rNgay:"28/06/2026",rCu:[],rKhoa:[],rLoai:[],rBp:[]};
+
+function buildSent(cu,time){
+  var foods={bep_dv:{},bep_benh_ly:{},sua_soup:{}},list=[],rej=[],rejBN={},idsDuyet=[],rejIds=[];
+  bnTrongCu(cu,true).forEach(function(b){
+    if((state.decision[cu+"__"+b.bnId]||"duyet")==="tu_choi"){rejBN[b.bnId]=state.reason[cu+"__"+b.bnId]||"";rej.push({ten:PMAP[b.bnId].ten,khoa:b.khoa,lyDo:state.reason[cu+"__"+b.bnId]||""});}
+  });
+  SUAT.filter(function(s){return s.gio===cu&&s.khoaGui;}).forEach(function(r){
+    if(rejBN.hasOwnProperty(r.bnId)){if(r.dbId)rejIds.push({id:r.dbId,lyDo:rejBN[r.bnId]});return;}
+    var bp=LOAI[r.loai].bp;
+    foods[bp][r.loai]=(foods[bp][r.loai]||0)+1;
+    list.push({ten:PMAP[r.bnId].ten,khoa:r.khoa,bp:bp,loai:r.loai});
+    if(r.dbId)idsDuyet.push(r.dbId);
+  });
+  return {time:time||gioHienTai(),foods:foods,list:list,rejected:rej,idsDuyet:idsDuyet,rejIds:rejIds};
+}
+["03:00","06:00","09:00"].forEach(function(g,i){state.sent[g]=buildSent(g,["05:10","05:40","08:45"][i]);});
+
+var root=document.getElementById("root"),toastEl=document.getElementById("toast"),toastTimer=null;
+function showToast(msg,color){toastEl.innerHTML='<div class="toast" style="background:'+(color||"var(--green)")+'">✓ '+msg+'</div>';if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.innerHTML="";},2600);}
+function chipsHTML(keys,counts){return keys.filter(function(k){return counts[k];}).map(function(k){return '<span class="chip '+BO_PHAN[LOAI[k].bp].cls+'">'+LOAI[k].ten+' <span class="n">'+counts[k]+'</span></span>';}).join("");}
+function lbadge(l){return '<span class="lbadge '+BO_PHAN[LOAI[l].bp].cls+'">'+LOAI[l].ten+'</span>';}
+function loaiMaChip(l,p){return '<span class="chip '+BO_PHAN[LOAI[l].bp].cls+'">'+LOAI[l].ten+' · '+maCheDo(l,p)+'</span>';}
+
+function queueRowHTML(cu){
+  var t=tongHopCu(cu),appr=!!state.approved[cu];
+  var soSuat=Object.keys(t.counts).reduce(function(a,k){return a+t.counts[k];},0),sel=state.selCu===cu;
+  var h='<div class="qrow'+(sel?' sel':'')+(appr?' appr':'')+'" data-act="selcu" data-cu="'+cu+'">';
+  h+='<div class="row between"><div class="row gap8"><div class="cu">'+cu+'</div>';
+  h+='<div><div class="pill">'+diffLabel(cu)+'</div><div class="sub" style="font-size:10px;margin-top:2px">'+buoiCuaCu(cu)+'</div></div></div>';
+  h+=(appr?'<span class="badge bp-dv">✓ duyệt</span>':'')+'</div>';
+  h+='<div class="sub" style="margin-top:7px">'+t.soBN+' BN · '+soSuat+' suất'+(t.chuaGui?' · <span style="color:var(--orange)">'+t.chuaGui+' chưa gửi</span>':'')+'</div>';
+  h+='<div class="row gap6 wrapf" style="margin-top:7px"><button class="b sm" data-act="open" data-cu="'+cu+'">Mở chi tiết</button>';
+  h+='<button class="b sm grn" data-act="duyetgui" data-cu="'+cu+'">Duyệt &amp; gửi nhanh</button></div></div>';
+  return h;
+}
+
+function khoaGroups(cu){
+  var elig=bnTrongCu(cu,true),groups={},order=[];
+  elig.forEach(function(b){
+    var p=PMAP[b.bnId];
+    if(state.fkhoa&&b.khoa!==state.fkhoa)return;
+    if(state.floai&&b.loais.indexOf(state.floai)<0)return;
+    if(state.onlyFlag&&!p.chuY)return;
+    if(state.dq){var q=state.dq.toLowerCase();if(p.ten.toLowerCase().indexOf(q)<0&&b.bnId.toLowerCase().indexOf(q)<0)return;}
+    if(!groups[b.khoa]){groups[b.khoa]=[];order.push(b.khoa);}
+    groups[b.khoa].push(b);
+  });
+  return {groups:groups,order:order};
+}
+function bnRowHTML(cu,b){
+  var p=PMAP[b.bnId],key=cu+"__"+b.bnId,on=(state.decision[key]||"duyet")==="duyet";
+  var h='<div class="trow"><div class="tick'+(on?' on':'')+'" data-act="tick" data-key="'+key+'">'+(on?'✓':'')+'</div>';
+  h+='<div style="flex:1">';
+  h+='<div class="bninfo" data-act="bnmodal" data-cu="'+cu+'" data-bn="'+b.bnId+'">';
+  h+='<div class="row between"><span style="font-size:13px;font-weight:700">'+p.ten+(p.chuY?'<span class="flag">'+p.chuY+'</span>':'')+'</span>';
+  h+='<span class="sub" style="font-size:10px">'+p.id+' · '+p.dob+' · P.'+p.phong+' G.'+p.giuong+'</span></div>';
+  h+='<div style="margin-top:5px">'+b.loais.map(function(l){return loaiMaChip(l,p);}).join("")+'</div>';
+  var gc=rowGhiChu(b.loais,p);if(gc)h+='<div class="gc">'+gc+'</div>';
+  h+='</div>';
+  if(!on){var rv=(state.reason[key]||"").replace(/"/g,"&quot;");h+='<input class="reason" data-key="'+key+'" placeholder="Lý do từ chối (bắt buộc)…" value="'+rv+'" style="border-color:'+((state.reason[key]||"").trim()?"var(--border)":"var(--red)")+'">';}
+  h+='</div></div>';
+  return h;
+}
+function dlistHTML(cu){
+  var kg=khoaGroups(cu),groups=kg.groups,order=kg.order;
+  if(!order.length)return '<div class="muted">Không có BN khớp bộ lọc</div>';
+  var inel={};bnTrongCu(cu,false).forEach(function(b){(inel[b.khoa]=inel[b.khoa]||[]).push(b);});
+  var h="";
+  order.forEach(function(khoa){
+    var bns=groups[khoa],open=!!state.openKhoa[khoa];
+    var duyet=bns.filter(function(b){return (state.decision[cu+"__"+b.bnId]||"duyet")==="duyet";}).length,part=duyet<bns.length;
+    h+='<div class="kacc"><div class="khead" data-act="tgkhoa" data-khoa="'+khoa+'">';
+    h+='<div><span style="font-size:13px;font-weight:800">'+khoa+'</span> <span class="sub">· '+bns.length+' BN</span></div>';
+    h+='<div class="row gap8"><span class="prog'+(part?' part':'')+'">'+duyet+'/'+bns.length+'</span>';
+    h+='<button class="b sm" data-act="duyetkhoa" data-cu="'+cu+'" data-khoa="'+khoa+'">Duyệt khoa</button>';
+    h+='<span style="color:var(--grayMid)">'+(open?'▲':'▼')+'</span></div></div>';
+    if(open){h+='<div class="kbody">'+bns.map(function(b){return bnRowHTML(cu,b);}).join("");
+      if(inel[khoa])h+='<div class="dim">'+inel[khoa].length+' BN khoa chưa gửi — không tác động</div>';h+='</div>';}
+    h+='</div>';
+  });
+  return h;
+}
+function detailPaneHTML(cu){
+  if(!cu)return '<div class="card" style="text-align:center;color:var(--textLight);padding:50px 16px">← Chọn một cữ bên trái để xử lý</div>';
+  var elig=bnTrongCu(cu,true);
+  var soDuyet=elig.filter(function(b){return (state.decision[cu+"__"+b.bnId]||"duyet")==="duyet";}).length,soTuChoi=elig.length-soDuyet;
+  var thieu=elig.some(function(b){var k=cu+"__"+b.bnId;return state.decision[k]==="tu_choi"&&!((state.reason[k]||"").trim());});
+  var t=tongHopCu(cu);
+  var h='<div class="card" style="margin:0">';
+  h+='<div class="row between" style="margin-bottom:10px"><div class="row gap10"><div class="cu">'+cu+'</div>';
+  h+='<div><div class="pill">Cách giờ cấp '+diffLabel(cu)+'</div><div class="sub" style="font-size:10px;margin-top:2px">Buổi '+buoiCuaCu(cu)+' · '+t.soBN+' BN · '+t.chuaGui+' khoa chưa gửi</div></div></div>';
+  h+='<button class="b sm out" data-act="duyetall" data-cu="'+cu+'">Duyệt tất cả cữ</button></div>';
+  h+='<div class="row gap8 wrapf" style="margin-bottom:10px">';
+  if(NHOM_DV.some(function(k){return t.counts[k];}))h+='<div>'+chipsHTML(NHOM_DV,t.counts)+'</div>';
+  if(NHOM_BL.some(function(k){return t.counts[k];}))h+='<div>'+chipsHTML(NHOM_BL,t.counts)+'</div>';
+  h+='</div>';
+  h+='<div class="tool"><input id="dsearch" placeholder="Tìm tên / mã BN…" value="'+state.dq.replace(/"/g,"&quot;")+'">';
+  h+='<select id="fkhoa"><option value="">Tất cả khoa</option>'+KHOA_LIST.map(function(k){return '<option'+(state.fkhoa===k?' selected':'')+'>'+k+'</option>';}).join("")+'</select>';
+  h+='<select id="floai"><option value="">Tất cả loại</option>'+ALL_LOAI.map(function(l){return '<option value="'+l+'"'+(state.floai===l?' selected':'')+'>'+LOAI[l].full+'</option>';}).join("")+'</select>';
+  h+='<button class="b sm'+(state.onlyFlag?' out':'')+'" data-act="toggleflag">'+(state.onlyFlag?'● ':'')+'Chỉ cần chú ý</button></div>';
+  h+='<div id="dlist">'+dlistHTML(cu)+'</div>';
+  h+='<div class="pane-foot"><button class="b" data-act="closepane">Đóng</button>';
+  h+='<button id="btnchuyen" class="b pri'+(thieu?' block':'')+'" style="flex:1" data-act="chuyen" data-cu="'+cu+'"'+(thieu?' data-block="1"':'')+'>Gửi cữ '+cu+' — '+soDuyet+' duyệt · '+soTuChoi+' trả về</button></div></div>';
+  return h;
+}
+function bnModalHTML(cu,bnId){
+  var p=PMAP[bnId],key=cu+"__"+bnId,on=(state.decision[key]||"duyet")==="duyet";
+  var h='<div class="ov"><div class="mod"><div class="mh"><div class="row between">';
+  h+='<div><div style="font-size:16px;font-weight:800">'+p.ten+(p.chuY?'<span class="flag">'+p.chuY+'</span>':'')+'</div>';
+  h+='<div class="sub" style="font-size:12px;margin-top:2px">'+p.id+' · NS '+p.dob+' · P.'+p.phong+' G.'+p.giuong+' · '+p.khoa+'</div>';
+  h+='<div style="margin-top:6px"><span class="chip bp-dv">Nhóm '+p.nhom+' — '+NHOM_TEN[p.nhom]+'</span><span class="chip bp-bl">'+DIS_TEN[p.dis]+'</span></div></div>';
+  h+='<button class="x" data-act="closebn">×</button></div></div>';
+  h+='<div style="padding:8px 18px 4px">';
+  h+='<div class="sechead">ĐĂNG KÝ CẢ NGÀY HÔM NAY</div>';
+  ALL_CU.slice().sort(function(a,b){return cuMin(a)-cuMin(b);}).forEach(function(g){
+    var its=p.items.filter(function(it){return it.gios.indexOf(g)>=0;});if(!its.length)return;
+    var loais=its.map(function(it){return it.loai;});
+    h+='<div class="culine"><div style="font-size:14px;font-weight:800;color:var(--primary);width:48px">'+g+'</div><div style="flex:1">';
+    h+=loais.map(function(l){return loaiMaChip(l,p);}).join("");
+    var gc=rowGhiChu(loais,p);if(gc)h+='<div class="gc">'+gc+'</div>';
+    h+='</div></div>';
+  });
+  h+='<div class="sechead">LỊCH SỬ (2 ngày gần nhất)</div>';
+  ["27/06/2026","26/06/2026"].forEach(function(dt){
+    h+='<div class="culine"><div style="font-size:11px;font-weight:700;color:var(--textMid);width:80px">'+dt+'</div><div style="flex:1">';
+    h+=p.items.map(function(it){return loaiMaChip(it.loai,p);}).join("")+'</div></div>';
+  });
+  h+='<div class="sub" style="font-size:10px;margin:4px 0 8px">* Lịch sử mô phỏng — nối thật sẽ lấy từ hệ thống khoa lâm sàng.</div>';
+  h+='</div>';
+  h+='<div class="mfoot"><span class="sub" style="flex:1">Cữ '+cu+': '+(on?'<b style="color:var(--green)">Đang duyệt</b>':'<b style="color:var(--red)">Đã từ chối</b>')+'</span>';
+  h+='<button class="b" data-act="closebn">Đóng</button>';
+  h+='<button class="b '+(on?'red':'pri')+'" data-act="bntoggle" data-key="'+key+'">'+(on?'Từ chối':'Duyệt lại')+'</button></div>';
+  h+='</div></div>';
+  return h;
+}
+
+function foodBreak(bp,foods){var f=foods[bp],keys=BO_PHAN[bp].loais.filter(function(l){return f[l];});if(!keys.length)return '<span style="color:var(--textLight)">—</span>';return keys.map(function(l){return LOAI[l].ten+' × '+f[l];}).join(' · ');}
+function bpTotal(bp,foods){var f=foods[bp],t=0;for(var k in f)t+=f[k];return t;}
+function tab2HTML(){
+  var keys=Object.keys(state.sent).sort(function(a,b){return cuMin(a)-cuMin(b);});
+  if(!keys.length)return '<div class="muted">Chưa gửi cữ nào</div>';
+  return keys.map(function(cu){
+    var s=state.sent[cu];
+    var h='<div class="card" style="border-color:var(--greenLight)"><div class="row between" style="margin-bottom:10px"><div class="row gap10"><div class="cu" style="font-size:18px">'+cu+'</div>';
+    h+='<span class="badge bp-bl">✓ Đã gửi '+s.time+'</span></div><button class="b sm" data-act="sentdetail" data-cu="'+cu+'">Xem chi tiết</button></div>';
+    h+='<div class="row gap8 wrapf">';
+    Object.keys(BO_PHAN).forEach(function(bp){
+      h+='<div class="sent-cell '+BO_PHAN[bp].cls+'"><div style="font-size:11px;font-weight:800">'+BO_PHAN[bp].icon+' '+BO_PHAN[bp].ten+' · '+bpTotal(bp,s.foods)+'</div><div style="font-size:11px;margin-top:4px">'+foodBreak(bp,s.foods)+'</div></div>';
+    });
+    h+='</div>';
+    if(s.rejected.length)h+='<div style="font-size:11px;color:var(--red);margin-top:8px">↩ Trả về khoa: '+s.rejected.length+' BN</div>';
+    return h+'</div>';
+  }).join("");
+}
+function sentDetailHTML(cu){
+  var s=state.sent[cu];
+  var h='<div class="ov"><div class="mod"><div class="mh"><div class="row between"><div><div style="font-size:11px;font-weight:700;color:var(--green);letter-spacing:1px">DANH SÁCH ĐÃ GỬI</div><div style="font-size:18px;font-weight:800">Cữ '+cu+' · gửi '+s.time+'</div></div><span class="row gap8"><button class="b sm" data-act="excelcu" data-cu="'+cu+'">⬇ Excel</button><button class="x" data-act="closesent">×</button></span></div></div><div style="padding:12px 18px">';
+  Object.keys(BO_PHAN).forEach(function(bp){
+    var rows=s.list.filter(function(x){return x.bp===bp;});
+    h+='<div style="margin-bottom:12px"><div class="row between" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">'+BO_PHAN[bp].icon+' '+BO_PHAN[bp].ten+'</span><span class="badge '+BO_PHAN[bp].cls+'">'+rows.length+' suất</span></div>';
+    h+='<div style="font-size:11px;color:var(--textMid);margin-bottom:6px">'+foodBreak(bp,s.foods)+'</div>';
+    rows.slice(0,8).forEach(function(r){h+='<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--borderLight)">'+lbadge(r.loai)+' '+r.ten+' <span class="sub">· '+r.khoa+'</span></div>';});
+    if(rows.length>8)h+='<div class="sub" style="margin-top:4px">… và '+(rows.length-8)+' suất nữa</div>';
+    h+='</div>';
+  });
+  if(s.rejected.length){h+='<div><div style="font-size:13px;font-weight:800;color:var(--red);margin-bottom:6px">↩ Trả về khoa ('+s.rejected.length+')</div>';
+    s.rejected.forEach(function(r){h+='<div style="font-size:12px;padding:3px 0">'+r.ten+' <span class="sub">· '+r.khoa+'</span> — <span style="color:var(--red)">'+(r.lyDo||"(không lý do)")+'</span></div>';});h+='</div>';}
+  return h+'</div></div></div>';
+}
+
+function tracuuResultsHTML(){
+  var q=state.dq.toLowerCase();
+  if(state.sel){
+    var bn=PMAP[state.sel];
+    var h='<button class="b sm" style="border:none;background:none;color:var(--primary);padding:0;margin-bottom:10px" data-act="back">‹ Quay lại</button>';
+    h+='<div class="card"><div style="font-size:16px;font-weight:800">'+bn.ten+(bn.chuY?'<span class="flag">'+bn.chuY+'</span>':'')+'</div>';
+    h+='<div class="sub" style="font-size:12px;margin-top:2px">'+bn.id+' · NS '+bn.dob+' · '+bn.khoa+' · P.'+bn.phong+' G.'+bn.giuong+'</div>';
+    h+='<div style="margin-top:6px"><span class="chip bp-dv">Nhóm '+bn.nhom+' — '+NHOM_TEN[bn.nhom]+'</span><span class="chip bp-bl">'+DIS_TEN[bn.dis]+'</span></div>';
+    if(!bn.khoaGui)h+='<div style="font-size:11px;color:var(--orange);margin-top:6px">⚠ Khoa chưa xác nhận/gửi BN này</div>';
+    h+='</div><div class="sechead">CHẾ ĐỘ ĂN CẢ NGÀY</div>';
+    ALL_CU.slice().sort(function(a,b){return cuMin(a)-cuMin(b);}).forEach(function(g){
+      var its=bn.items.filter(function(it){return it.gios.indexOf(g)>=0;});if(!its.length)return;
+      var loais=its.map(function(it){return it.loai;});
+      h+='<div class="culine"><div style="font-size:14px;font-weight:800;color:var(--primary);width:48px">'+g+'</div><div style="flex:1">'+loais.map(function(l){return loaiMaChip(l,bn);}).join("");
+      var gc=rowGhiChu(loais,bn);if(gc)h+='<div class="gc">'+gc+'</div>';h+='</div></div>';
+    });
+    return h;
+  }
+  if(!q)return '<div class="muted">Gõ tên hoặc mã để tìm</div>';
+  var kq=PATIENTS.filter(function(p){return p.ten.toLowerCase().indexOf(q)>=0||p.id.toLowerCase().indexOf(q)>=0;}).slice(0,40);
+  if(!kq.length)return '<div class="muted">Không tìm thấy</div>';
+  return kq.map(function(p){return '<div class="qrow" data-act="sel" data-id="'+p.id+'"><div class="row between"><div><div style="font-size:14px;font-weight:700">'+p.ten+'</div><div class="sub" style="font-size:11px">'+p.id+' · '+p.khoa+' · P.'+p.phong+'</div></div><span style="color:var(--grayMid)">›</span></div></div>';}).join("");
+}
+
+function headerHTML(){
+  var cho=ALL_CU.filter(function(g){return !state.sent[g];}).length,dagui=Object.keys(state.sent).length;
+  var tabs=[["cho","Cữ chờ xử lý ("+cho+")"],["dagui","Đã gửi ("+dagui+")"],["tracuu","Tra cứu BN"],["danhmuc","Danh mục sữa"],["baocao","Báo cáo"]];
+  var modeTxt=state.realMode?'🟢 SUPABASE (chạy thật)':'⚪ DEMO (dữ liệu mẫu)';
+  var h='<div class="hd"><div class="k">KHOA DINH DƯỠNG · v7 · '+modeTxt+'</div><div class="t">Duyệt &amp; chuyển sản xuất theo cữ</div><div class="tabs">';
+  tabs.forEach(function(t){h+='<div class="tab'+(state.tab===t[0]?' on':'')+'" data-act="tab" data-tab="'+t[0]+'">'+t[1]+'</div>';});
+  return h+'</div></div>';
+}
+function bodyHTML(){
+  if(state.tab==="cho"){
+    var cu=ALL_CU.filter(function(g){return !state.sent[g];}).sort(function(a,b){return cuDiff(a)-cuDiff(b);});
+    if(!cu.length)return '<div class="muted">Đã xử lý hết các cữ 🎉</div>';
+    return '<div class="split"><div class="queue">'+cu.map(queueRowHTML).join("")+'</div><div class="detailpane'+(state.selCu?' open':'')+'">'+detailPaneHTML(state.selCu)+'</div></div>';
+  }
+  if(state.tab==="dagui")return tab2HTML();
+  if(state.tab==="tracuu")return '<div style="position:relative;margin-bottom:14px;max-width:520px"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--textLight)">🔍</span><input id="search" style="width:100%;padding:11px 12px 11px 34px;border-radius:10px;border:1.5px solid var(--border);font-size:13px;font-family:inherit" placeholder="Tìm tên hoặc mã bệnh nhân…" value="'+state.dq.replace(/"/g,"&quot;")+'"></div><div id="tcres">'+tracuuResultsHTML()+'</div>';
+  if(state.tab==="danhmuc")return danhMucHTML();
+  if(state.tab==="baocao")return baocaoHTML();
+  return "";
+}
+function tuoiChips(arr){return arr.map(function(n){return '<span class="lbadge bp-dv">'+n+'</span>';}).join("");}
+function benhChips(arr){return arr.length?arr.map(function(b){return '<span class="lbadge bp-bl">'+b+'</span>';}).join(""):'<span class="sub">—</span>';}
+function danhMucHTML(){
+  var h='<div class="card"><div class="sechead" style="margin-top:0">QUY ĐỊNH CHỌN MÃ SỮA</div>';
+  h+='<div class="sub" style="margin-bottom:12px;line-height:1.6">• <b>Sữa BT</b>: lọc theo <b>nhóm tuổi</b> (không xét bệnh). &nbsp; • <b>Sữa ĐB</b>: lọc theo <b>nhóm tuổi × mã bệnh</b>. &nbsp; • Công thức pha do KDD nhập/điều chỉnh.<br>Nhóm tuổi: <b>1</b>=&lt;6th · <b>2</b>=6–12th · <b>3</b>=1–3t · <b>4</b>=4–6t · <b>5</b>=7–15t</div>';
+  h+='<div class="row between" style="margin-bottom:8px"><b style="font-size:13px">Bảng 1 — Mã sữa</b><button class="b sm out" data-act="addsua">+ Thêm mã</button></div>';
+  h+='<div style="overflow:auto"><table class="dmt"><tr><th>Mã</th><th>Tên sữa</th><th>Loại</th><th>Nhóm tuổi</th><th>Mã bệnh</th><th>Bột(g)</th><th>Nước(ml)</th><th>TP(ml)</th><th>Trạng thái</th></tr>';
+  SUA_CAT.forEach(function(s,i){
+    h+='<tr'+(s.on?'':' style="opacity:.5"')+'><td><b>'+s.ma+'</b></td><td>'+s.ten+'</td>';
+    h+='<td><span class="lbadge '+(s.loai==="BT"?"bp-dv":"bp-ss")+'">'+s.loai+'</span></td>';
+    h+='<td>'+tuoiChips(s.tuoi)+'</td><td>'+(s.loai==="ĐB"?benhChips(s.benh):'<span class="sub">—</span>')+'</td>';
+    h+='<td><input class="fcell" data-t="sua" data-i="'+i+'" data-k="bot" value="'+s.bot+'"></td>';
+    h+='<td><input class="fcell" data-t="sua" data-i="'+i+'" data-k="nuoc" value="'+s.nuoc+'"></td>';
+    h+='<td><input class="fcell" data-t="sua" data-i="'+i+'" data-k="tp" value="'+s.tp+'"></td>';
+    h+='<td><button class="b sm '+(s.on?'grn':'red')+'" data-act="sgtog" data-i="'+i+'">'+(s.on?'Đang dùng':'Ngừng')+'</button></td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="margin-top:18px"><b style="font-size:13px">Bảng 2 — Soup sonde (4 loại)</b></div>';
+  h+='<div style="overflow:auto;margin-top:8px"><table class="dmt"><tr><th>Mã</th><th>Tên</th><th>Nguyên liệu / suất</th><th>TP(ml)</th><th>Trạng thái</th></tr>';
+  SOUP_CAT.forEach(function(s,i){
+    h+='<tr'+(s.on?'':' style="opacity:.5"')+'><td><b>'+s.ma+'</b></td><td>'+s.ten+'</td>';
+    h+='<td><input class="fcell" data-t="soup" data-i="'+i+'" data-k="nl" value="'+s.nl.replace(/"/g,"&quot;")+'" style="width:300px"></td>';
+    h+='<td><input class="fcell" data-t="soup" data-i="'+i+'" data-k="tp" value="'+s.tp+'"></td>';
+    h+='<td><button class="b sm '+(s.on?'grn':'red')+'" data-act="sstog" data-i="'+i+'">'+(s.on?'Đang dùng':'Ngừng')+'</button></td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="sub" style="margin-top:10px">Công thức là số liệu mock — KDD chỉnh trực tiếp trong ô (bột/nước/TP, nguyên liệu). Đây là cơ sở để khoa lâm sàng chọn mã và phòng sữa-soup tính nguyên liệu tiêu thụ.</div>';
+  return h+'</div>';
+}
+
+function fchip(grp,val,label){var on=state[grp].indexOf(val)>=0;return '<span class="fchip'+(on?" on":"")+'" data-act="rtog" data-grp="'+grp+'" data-val="'+val+'">'+label+'</span>';}
+function filteredSuat(){
+  return SUAT.filter(function(s){
+    if(!s.khoaGui)return false;
+    if(state.rCu.length&&state.rCu.indexOf(s.gio)<0)return false;
+    if(state.rKhoa.length&&state.rKhoa.indexOf(s.khoa)<0)return false;
+    if(state.rLoai.length&&state.rLoai.indexOf(s.loai)<0)return false;
+    if(state.rBp.length&&state.rBp.indexOf(LOAI[s.loai].bp)<0)return false;
+    return true;
+  });
+}
+function csvCell(v){return '"'+(""+v).replace(/"/g,'""')+'"';}
+function ghiChuText(loai,p){return rowGhiChu([loai],p).replace("📝 ","");}
+function dlCSV(name,csv){var blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();}
+function exportCSV(){
+  var rows=filteredSuat();
+  var out=[["Ngay","Cu","Khoa","MaBN","Ten","Loai","MaCheDo","BoPhan","GhiChu"].map(csvCell).join(",")];
+  rows.forEach(function(r){var p=PMAP[r.bnId];out.push([state.rNgay,r.gio,r.khoa,p.id,p.ten,LOAI[r.loai].full,maCheDo(r.loai,p),BO_PHAN[LOAI[r.loai].bp].ten,ghiChuText(r.loai,p)].map(csvCell).join(","));});
+  dlCSV("bao-cao-suat-an_"+state.rNgay.replace(/\//g,"-")+".csv",out.join("\n"));
+  showToast("Đã tải Excel — "+rows.length+" dòng");
+}
+function exportCuCSV(cu){
+  var s=state.sent[cu];
+  var out=[["Cu","BoPhan","Loai","Ten","Khoa"].map(csvCell).join(",")];
+  s.list.forEach(function(r){out.push([cu,BO_PHAN[r.bp].ten,LOAI[r.loai].full,r.ten,r.khoa].map(csvCell).join(","));});
+  dlCSV("phieu-giao-bep_"+cu.replace(":","")+".csv",out.join("\n"));
+  showToast("Đã tải phiếu giao bếp cữ "+cu);
+}
+function baocaoHTML(){
+  var rows=filteredSuat(),byLoai={},byKhoa={},side={cc:0,ss:0};
+  rows.forEach(function(r){
+    byLoai[r.loai]=(byLoai[r.loai]||0)+1;
+    if(!byKhoa[r.khoa])byKhoa[r.khoa]={cc:0,ss:0,t:0};
+    if(LOAI[r.loai].bp==="sua_soup"){side.ss++;byKhoa[r.khoa].ss++;}else{side.cc++;byKhoa[r.khoa].cc++;}
+    byKhoa[r.khoa].t++;
+  });
+  var cuOpts=ALL_CU.slice().sort(function(a,b){return cuMin(a)-cuMin(b);});
+  var h='<div class="card"><div class="rfilter">';
+  h+='<div class="frow"><span class="flbl">Ngày</span><select id="rngay"><option'+(state.rNgay==="28/06/2026"?" selected":"")+'>28/06/2026</option><option'+(state.rNgay==="27/06/2026"?" selected":"")+'>27/06/2026</option></select></div>';
+  h+='<div class="frow"><span class="flbl">Cữ</span>'+cuOpts.map(function(g){return fchip("rCu",g,g);}).join("")+'</div>';
+  h+='<div class="frow"><span class="flbl">Khoa</span><span class="fkhoabox">'+KHOA_LIST.map(function(k){return fchip("rKhoa",k,k);}).join("")+'</span></div>';
+  h+='<div class="frow"><span class="flbl">Loại</span>'+ALL_LOAI.map(function(l){return fchip("rLoai",l,LOAI[l].full);}).join("")+'</div>';
+  h+='<div class="frow"><span class="flbl">Bộ phận</span>'+Object.keys(BO_PHAN).map(function(b){return fchip("rBp",b,BO_PHAN[b].ten);}).join("")+'</div>';
+  h+='<div class="frow"><button class="b sm pri" data-act="excelreport">⬇ Tải Excel</button><button class="b sm" data-act="clearfilter">Bỏ lọc</button></div></div>';
+  h+='<div class="row gap8 wrapf" style="margin:6px 0 12px">';
+  h+='<div class="sent-cell" style="background:var(--grayLight)"><div style="font-size:11px;font-weight:800">Tổng suất</div><div style="font-size:22px;font-weight:800">'+rows.length+'</div></div>';
+  h+='<div class="sent-cell bp-dv"><div style="font-size:11px;font-weight:800">Bên Cơm-Cháo</div><div style="font-size:22px;font-weight:800">'+side.cc+'</div></div>';
+  h+='<div class="sent-cell bp-ss"><div style="font-size:11px;font-weight:800">Bên Sữa-Soup</div><div style="font-size:22px;font-weight:800">'+side.ss+'</div></div></div>';
+  h+='<div style="margin-bottom:12px">'+ALL_LOAI.filter(function(l){return byLoai[l];}).map(function(l){return '<span class="chip '+BO_PHAN[LOAI[l].bp].cls+'">'+LOAI[l].full+' <span class="n">'+byLoai[l]+'</span></span>';}).join("")+'</div>';
+  h+='<div class="sechead">THEO KHOA</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:var(--textLight)"><th style="padding:6px 8px">Khoa</th><th style="padding:6px 8px">Cơm-Cháo</th><th style="padding:6px 8px">Sữa-Soup</th><th style="padding:6px 8px">Tổng</th></tr>';
+  Object.keys(byKhoa).sort().forEach(function(k){var x=byKhoa[k];h+='<tr style="border-top:1px solid var(--borderLight)"><td style="padding:6px 8px">'+k+'</td><td style="padding:6px 8px">'+x.cc+'</td><td style="padding:6px 8px">'+x.ss+'</td><td style="padding:6px 8px;font-weight:700">'+x.t+'</td></tr>';});
+  h+='</table><div class="sub" style="margin-top:8px">Bảng tổng hợp theo lọc hiện tại. Bấm “Tải Excel” để lấy chi tiết từng suất.</div></div>';
+  return h;
+}
+
+function render(){
+  var ov="";
+  if(state.bnModal)ov=bnModalHTML(state.bnModal.cu,state.bnModal.bnId);
+  else if(state.tab==="dagui"&&state.sentDetail)ov=sentDetailHTML(state.sentDetail);
+  root.innerHTML=headerHTML()+'<div class="wrap">'+bodyHTML()+'</div>'+ov;
+}
+function guiCu(cu){
+  var rec=buildSent(cu);
+  if(state.realMode&&window.SUAT_DB){
+    if(rec.idsDuyet.length)window.SUAT_DB.updateTrangThai(rec.idsDuyet,"da_gui_sx");
+    rec.rejIds.forEach(function(x){window.SUAT_DB.updateTrangThai([x.id],"kdd_tu_choi",x.lyDo);});
+  }
+  state.sent[cu]=rec;delete state.approved[cu];
+  if(state.selCu===cu)state.selCu=null;
+  showToast("Cữ "+cu+": gửi "+rec.list.length+" suất"+(rec.rejected.length?" · trả về khoa "+rec.rejected.length:""));render();
+}
+function setDecAll(cu,val){bnTrongCu(cu,true).forEach(function(b){state.decision[cu+"__"+b.bnId]=val;});}
+
+root.addEventListener("click",function(e){
+  var el=e.target.closest("[data-act]");if(!el)return;
+  var act=el.dataset.act,cu=el.dataset.cu;
+  if(act==="tab"){state.tab=el.dataset.tab;state.sel=null;if(state.tab!=="tracuu")state.dq="";render();}
+  else if(act==="selcu"){state.selCu=cu;state.openKhoa={};state.dq="";state.fkhoa="";state.floai="";state.onlyFlag=false;render();}
+  else if(act==="open"){state.selCu=cu;state.openKhoa={};render();}
+  else if(act==="closepane"){state.selCu=null;render();}
+  else if(act==="tgkhoa"){var k=el.dataset.khoa;state.openKhoa[k]=!state.openKhoa[k];render();}
+  else if(act==="duyetkhoa"){bnTrongCu(cu,true).forEach(function(b){if(b.khoa===el.dataset.khoa)state.decision[cu+"__"+b.bnId]="duyet";});showToast("Đã duyệt khoa "+el.dataset.khoa);render();}
+  else if(act==="duyetall"){setDecAll(cu,"duyet");state.approved[cu]=true;showToast("Đã duyệt tất cả cữ "+cu);render();}
+  else if(act==="duyetgui"){setDecAll(cu,"duyet");guiCu(cu);}
+  else if(act==="chuyen"){if(!el.dataset.block)guiCu(cu);}
+  else if(act==="tick"){var key=el.dataset.key;state.decision[key]=((state.decision[key]||"duyet")==="duyet")?"tu_choi":"duyet";render();}
+  else if(act==="bnmodal"){state.bnModal={cu:el.dataset.cu,bnId:el.dataset.bn};render();}
+  else if(act==="closebn"){state.bnModal=null;render();}
+  else if(act==="bntoggle"){var key2=el.dataset.key;state.decision[key2]=((state.decision[key2]||"duyet")==="duyet")?"tu_choi":"duyet";render();}
+  else if(act==="sentdetail"){state.sentDetail=cu;render();}
+  else if(act==="closesent"){state.sentDetail=null;render();}
+  else if(act==="excelcu"){exportCuCSV(cu);}
+  else if(act==="excelreport"){exportCSV();}
+  else if(act==="rtog"){var g=el.dataset.grp,v=el.dataset.val,a=state[g],ix=a.indexOf(v);if(ix>=0)a.splice(ix,1);else a.push(v);render();}
+  else if(act==="clearfilter"){state.rCu=[];state.rKhoa=[];state.rLoai=[];state.rBp=[];render();}
+  else if(act==="sgtog"){SUA_CAT[+el.dataset.i].on=!SUA_CAT[+el.dataset.i].on;render();}
+  else if(act==="sstog"){SOUP_CAT[+el.dataset.i].on=!SOUP_CAT[+el.dataset.i].on;render();}
+  else if(act==="addsua"){showToast("Demo — bản thật mở form thêm mã sữa");}
+  else if(act==="toggleflag"){state.onlyFlag=!state.onlyFlag;render();}
+  else if(act==="sel"){state.sel=el.dataset.id;render();}
+  else if(act==="back"){state.sel=null;render();}
+});
+root.addEventListener("change",function(e){var t=e.target;if(t.id==="fkhoa"){state.fkhoa=t.value;render();}else if(t.id==="floai"){state.floai=t.value;render();}else if(t.id==="rngay"){state.rNgay=t.value;render();}});
+root.addEventListener("input",function(e){
+  var t=e.target;
+  if(t.classList.contains("fcell")){var arr=t.dataset.t==="sua"?SUA_CAT:SOUP_CAT,o=arr[+t.dataset.i],k=t.dataset.k;o[k]=(k==="nl")?t.value:(+t.value||0);return;}
+  if(t.id==="search"){state.dq=t.value;var r=document.getElementById("tcres");if(r)r.innerHTML=tracuuResultsHTML();}
+  else if(t.id==="dsearch"){state.dq=t.value;var d=document.getElementById("dlist");if(d)d.innerHTML=dlistHTML(state.selCu);}
+  else if(t.classList.contains("reason")){
+    var key=t.dataset.key;state.reason[key]=t.value;t.style.borderColor=t.value.trim()?"var(--border)":"var(--red)";
+    var cu=state.selCu,elig=bnTrongCu(cu,true);
+    var thieu=elig.some(function(b){var k=cu+"__"+b.bnId;return state.decision[k]==="tu_choi"&&!((state.reason[k]||"").trim());});
+    var btn=document.getElementById("btnchuyen");
+    if(btn){if(thieu){btn.dataset.block="1";btn.className="b pri block";}else{delete btn.dataset.block;btn.className="b pri";}}
+  }
+});
+
+function fmtDob(d){if(!d)return"";var p=(""+d).split("T")[0].split("-");return p.length===3?(p[2]+"/"+p[1]+"/"+p[0]):(""+d);}
+function clearData(){PATIENTS.length=0;SUAT.length=0;ALL_CU.length=0;for(var k in PMAP)delete PMAP[k];}
+function rebuildFromDB(rows){
+  clearData();state.sent={};
+  rows.forEach(function(r){
+    var id=r.ma_bn||("BN"+r.id);
+    if(!PMAP[id]){
+      var p={id:id,ten:r.ho_ten||id,khoa:r.khoa||"—",phong:r.phong||"",giuong:r.giuong||"",
+        khoaGui:true,chuY:null,nhom:r.nhom_tuoi||5,dob:fmtDob(r.ngay_sinh),
+        dis:r.dis||"BT",suaCode:"",sondeCode:"",
+        choNem:r.nem?"Nêm":"Không nêm",choXay:r.xay?"Xay":"Không xay",
+        dd:{kcal:r.kcal||0,P:r.protein_g||0,L:r.lipid_g||0,G:r.glucid_g||0},
+        ghiChu:r.ghi_chu||"",items:[]};
+      PMAP[id]=p;PATIENTS.push(p);
+    }
+    var pp=PMAP[id];
+    if((r.loai==="sua_bt"||r.loai==="sua_db")&&r.ma_che_do)pp.suaCode=r.ma_che_do;
+    if(r.loai==="sonde"&&r.ma_che_do)pp.sondeCode=r.ma_che_do;
+    if(r.dis&&r.dis!=="BT")pp.dis=r.dis;
+    var it=null;for(var i=0;i<pp.items.length;i++){if(pp.items[i].loai===r.loai){it=pp.items[i];break;}}
+    if(!it){it={loai:r.loai,gios:[]};pp.items.push(it);}
+    if(it.gios.indexOf(r.cu)<0)it.gios.push(r.cu);
+    SUAT.push({bnId:id,gio:r.cu,loai:r.loai,khoaGui:true,khoa:pp.khoa,dbId:r.id});
+  });
+  SUAT.map(function(s){return s.gio;}).forEach(function(g){if(ALL_CU.indexOf(g)<0)ALL_CU.push(g);});
+}
+function initSelDesktop(){
+  if(typeof window!=="undefined"&&window.innerWidth>=1024){
+    state.selCu=ALL_CU.filter(function(g){return !state.sent[g];}).sort(function(a,b){return cuDiff(a)-cuDiff(b);})[0]||null;
+  }
+}
+function boot(){
+  if(window.SUAT_DB&&window.SUAT_DB.configured()){
+    state.realMode=true;
+    Promise.resolve(window.SUAT_DB.fetchChoXuLy()).then(function(res){
+      if(res&&res.error){showToast("Lỗi tải Supabase — chuyển demo",'var(--red)');state.realMode=false;}
+      else{rebuildFromDB((res&&res.data)||[]);}
+      initSelDesktop();render();
+    }).catch(function(){state.realMode=false;initSelDesktop();render();});
+  }else{
+    state.realMode=false;initSelDesktop();render();
+  }
+}
+boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hệ thống suất ăn — Demo điều hướng vai trò (BV Nhi Đồng 1)</title>
+<style>
+  :root{
+    --bg:#F0F4F8; --header:#0D1F2D; --primary:#0E6BA8; --primaryL:#E6F2FA;
+    --line:#DDE3EA; --text:#0D1F2D; --muted:#64748B; --white:#fff;
+    --green:#0E8A5F; --orange:#E8650A; --side:300px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
+  #app{display:flex;flex-direction:column;height:100vh}
+
+  /* ===== Header ===== */
+  .top{background:var(--header);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+  .top .brand{display:flex;flex-direction:column;line-height:1.25}
+  .top .brand .k{font-size:10.5px;font-weight:700;color:#5B8FAA;letter-spacing:1px}
+  .top .brand .t{font-size:15.5px;font-weight:800}
+  .badge{font-size:10px;font-weight:800;letter-spacing:1px;background:var(--orange);color:#fff;border-radius:6px;padding:3px 8px}
+  .note{font-size:11.5px;color:#9DB4C7;flex:1;min-width:160px}
+  .top .acts{display:flex;gap:8px}
+  .tbtn{font-size:12px;font-weight:700;border:1px solid #2B4256;background:#16293a;color:#cfe0ee;border-radius:8px;padding:7px 11px;cursor:pointer}
+  .tbtn:hover{background:#1f3a52;border-color:#3a5670}
+
+  /* ===== Body ===== */
+  .body{flex:1;display:flex;min-height:0}
+  .side{width:var(--side);flex-shrink:0;background:var(--white);border-right:1px solid var(--line);overflow-y:auto;padding:14px 12px}
+  .side .lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:4px 6px 10px}
+  .nav{list-style:none;margin:0;padding:0;position:relative}
+  .nav li{position:relative}
+  .item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;cursor:pointer;border:1.5px solid transparent;margin-bottom:4px;transition:.12s}
+  .item:hover{background:var(--primaryL)}
+  .item.active{background:var(--primaryL);border-color:var(--primary)}
+  .num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:#EEF2F5;color:var(--muted);font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .item.active .num{background:var(--primary);color:#fff}
+  .meta{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+  .meta .nm{font-size:13.5px;font-weight:700}
+  .meta .sub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flowtip{font-size:11px;color:var(--muted);margin:12px 8px 4px;line-height:1.6}
+  .flowtip b{color:var(--primary)}
+
+  /* ===== Stage ===== */
+  .stage{flex:1;min-width:0;position:relative;background:#fff}
+  iframe{width:100%;height:100%;border:0;display:block}
+
+  /* ===== Mobile ===== */
+  .mtoggle{display:none}
+  @media (max-width:900px){
+    .body{flex-direction:column}
+    .side{width:auto;border-right:0;border-bottom:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:10px}
+    .side .lbl,.flowtip{display:none}
+    .nav{display:flex;gap:8px}
+    .item{flex-direction:column;align-items:center;gap:4px;min-width:96px;text-align:center;margin-bottom:0;padding:9px}
+    .meta .sub{display:none}
+    .meta .nm{font-size:11.5px;white-space:normal}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="brand">
+      <span class="k">BV NHI ĐỒNG 1 · HỆ THỐNG SUẤT ĂN</span>
+      <span class="t">Demo điều hướng vai trò</span>
+    </div>
+    <span class="badge">DEMO</span>
+    <span class="note">Vỏ điều hướng nối các mockup. Mỗi màn chạy dữ liệu mẫu riêng — chưa liên thông (cần backend).</span>
+    <div class="acts">
+      <button class="tbtn" onclick="openTab()">↗ Mở tab mới</button>
+      <button class="tbtn" onclick="fs()">⛶ Toàn màn hình</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="side">
+      <div class="lbl">Luồng vận hành</div>
+      <ul class="nav" id="nav"></ul>
+      <div class="flowtip">Thứ tự luồng:<br><b>Khoa</b> → <b>KDD</b> → <b>Sản xuất</b> → <b>Giao</b> → <b>Admin</b></div>
+    </div>
+    <div class="stage">
+      <iframe id="frame" title="Màn vai trò"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+var ROLES = [
+  {n:"Khoa lâm sàng",   sub:"Đăng ký suất ăn",        f:"he-thong-suat-an.html"},
+  {n:"KDD",             sub:"Duyệt & gửi sản xuất",   f:"man-hinh-kdd.html"},
+  {n:"Bếp dịch vụ",     sub:"Sản xuất (chỉ DV)",       f:"man-san-xuat.html?bep=dv"},
+  {n:"Bếp cơm bệnh lý", sub:"Sản xuất (chỉ BL)",       f:"man-san-xuat.html?bep=bl"},
+  {n:"Phòng sữa-soup",  sub:"Sản xuất + nguyên liệu",  f:"man-san-xuat.html?bep=sua"},
+  {n:"Người giao",      sub:"Bếp dịch vụ",            f:"giao-hang-bep-dich-vu.html"},
+  {n:"Giám sát giao",   sub:"Bếp dịch vụ",            f:"quan-ly-phan-cong-giam-sat.html"},
+  {n:"Admin",           sub:"Quản trị tổng",          f:"man-hinh-quan-tri.html"}
+];
+var cur = 0;
+var frame = document.getElementById("frame");
+
+function render(){
+  var nav = document.getElementById("nav");
+  nav.innerHTML = "";
+  ROLES.forEach(function(r,i){
+    var li = document.createElement("li");
+    li.className = "item" + (i===cur?" active":"");
+    li.onclick = function(){ go(i); };
+    li.innerHTML =
+      '<span class="num">'+(i+1)+'</span>'+
+      '<span class="meta"><span class="nm">'+r.n+'</span><span class="sub">'+r.sub+'</span></span>';
+    nav.appendChild(li);
+  });
+}
+function go(i){
+  cur = i;
+  frame.src = ROLES[i].f;
+  frame.title = ROLES[i].n;
+  render();
+}
+function fs(){
+  if(frame.requestFullscreen) frame.requestFullscreen();
+  else if(frame.webkitRequestFullscreen) frame.webkitRequestFullscreen();
+}
+function openTab(){ window.open(ROLES[cur].f, "_blank"); }
+
+render();
+go(0);
+</script>
+</body>
+</html>
