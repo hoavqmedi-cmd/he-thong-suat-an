@@ -598,11 +598,24 @@ function applyDateLabel(){
   var d=document.getElementById("proddate");if(d)d.textContent=PROD_DATE||todayStr();
   var m=document.getElementById("modeind");if(m)m.innerHTML=REAL?'<b style="color:#16a34a">🟢 SUPABASE</b>':'<b style="color:#64748b">⚪ Dữ liệu mẫu</b>';
 }
+// ── G3-PR2: đảo ngược _chuanHoa — đọc cột chuẩn, fallback cột cũ (sẵn sàng G4) ──
+var _CU_GIO={"01":"03:00","02":"06:00","03":"09:00","04":"11:00","05":"12:00","06":"15:00","07":"16:00","08":"17:00","09":"18:00","10":"21:00","11":"00:00"};
+var _MON_LOAI={CPDV:"com_dv",ChPDV:"chao_dv","Cơm":"com_bl","Cháo":"chao_bl","Súp Sonde":"sonde"};
+function _denorm(r){
+  if((r.loai==null||r.loai==="")&&r.ma_mon!=null){
+    if(r.ma_mon==="Sữa"){var c=SUA_MAP[r.ma_che_do];r.loai=(c&&c.loai==="ĐB")?"sua_db":"sua_bt";}
+    else if(_MON_LOAI[r.ma_mon])r.loai=_MON_LOAI[r.ma_mon];
+  }
+  if((r.cu==null||r.cu==="")&&r.cu_so!=null&&_CU_GIO[r.cu_so])r.cu=_CU_GIO[r.cu_so];
+  if((r.khoa==null||r.khoa==="")&&r.ma_khoa!=null)r.khoa=r.ma_khoa;
+  return r;
+}
 function rebuildFromDB(rows){
   PATIENTS.length=0;SUAT.length=0;for(var k in PMAP)delete PMAP[k];
   if(!rows||!rows.length){PROD_DATE=todayStr();return;}
   var maxNgay=rows[0].ngay||"";rows.forEach(function(r){if((r.ngay||"")>maxNgay)maxNgay=r.ngay||"";});
   PROD_DATE=fmtDateVN(maxNgay)||todayStr();
+  rows.forEach(_denorm); // điền r.cu/r.loai/r.khoa từ cột chuẩn trước khi dựng
   rows.filter(function(r){return (r.ngay||"")===maxNgay;}).forEach(function(r){
     var id=r.ma_bn||("BN"+r.id);
     if(!PMAP[id]){
