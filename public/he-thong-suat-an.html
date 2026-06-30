@@ -56,9 +56,11 @@ window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anon
   var _MON_SUAT = { CPDV:1, ChPDV:1, "Cơm":1, "Cháo":1 }; // đơn vị 'suất' → so_luong=1; món 'ml' (Sữa/Súp Sonde) để trống (KDD nhập sau)
   function _chuanHoa(x) {
     var r = Object.assign({}, x);
-    if (r.ma_mon == null && r.loai != null && _MA_MON[r.loai] != null) r.ma_mon = _MA_MON[r.loai];
-    if (r.cu_so == null && r.cu != null && _CU_SO[r.cu] != null) r.cu_so = _CU_SO[r.cu];
-    if (r.so_luong == null && r.ma_mon != null && _MON_SUAT[r.ma_mon]) r.so_luong = _MON_SUAT[r.ma_mon];
+    // LUÔN set đủ 3 key (null khi không áp dụng) để mọi dòng trong 1 lần
+    // upsert đồng nhất key — PostgREST đòi "all object keys must match".
+    if (r.ma_mon == null) r.ma_mon = (r.loai != null && _MA_MON[r.loai] != null) ? _MA_MON[r.loai] : null;
+    if (r.cu_so == null) r.cu_so = (r.cu != null && _CU_SO[r.cu] != null) ? _CU_SO[r.cu] : null;
+    if (r.so_luong == null) r.so_luong = (r.ma_mon != null && _MON_SUAT[r.ma_mon]) ? _MON_SUAT[r.ma_mon] : null;
     return r;
   }
   window.SUAT_DB = {
