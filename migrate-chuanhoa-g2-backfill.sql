@@ -102,12 +102,23 @@ where loai is not null;
 
 -- ════════════════════════════════════════════════════════════
 -- 4) BACKFILL cu_so TỪ cu (giờ text → số cữ)
+--    Map ĐẦY ĐỦ 11 cữ theo MEAL_SESSIONS (danh-muc.js). Luồng BL ghi
+--    cu = giờ thực của cữ (03:00..00:00), không chỉ 3 mốc DV → phải đủ
+--    11 mốc, nếu không cu_so của sữa/sonde sẽ NULL (cu_sot != 0).
 -- ════════════════════════════════════════════════════════════
 
 update dang_ky_suat set cu_so = case cu
+    when '03:00' then '01'
     when '06:00' then '02'
+    when '09:00' then '03'
     when '11:00' then '04'
+    when '12:00' then '05'
+    when '15:00' then '06'
+    when '16:00' then '07'
     when '17:00' then '08'
+    when '18:00' then '09'
+    when '21:00' then '10'
+    when '00:00' then '11'
     else cu_so
   end
 where cu is not null;
