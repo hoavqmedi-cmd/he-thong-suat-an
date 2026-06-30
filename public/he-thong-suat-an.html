@@ -61,6 +61,10 @@ window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anon
     if (r.ma_mon == null) r.ma_mon = (r.loai != null && _MA_MON[r.loai] != null) ? _MA_MON[r.loai] : null;
     if (r.cu_so == null) r.cu_so = (r.cu != null && _CU_SO[r.cu] != null) ? _CU_SO[r.cu] : null;
     if (r.so_luong == null) r.so_luong = (r.ma_mon != null && _MON_SUAT[r.ma_mon]) ? _MON_SUAT[r.ma_mon] : null;
+    // G4-prep: NGỪNG gửi cột cũ loai/cu/buoi (đã suy ra ma_mon/cu_so ở trên;
+    // readers dùng _denorm để bù). Giữ khoa (tên) + ma_che_do. Cho phép drop
+    // loai/cu/buoi ở G4 mà không vỡ INSERT.
+    delete r.loai; delete r.cu; delete r.buoi;
     return r;
   }
   window.SUAT_DB = {
