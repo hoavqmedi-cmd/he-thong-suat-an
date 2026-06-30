@@ -47,9 +47,23 @@ window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anon
     if (!window.supabase || !window.supabase.createClient) { console.error("[suat-db] Chưa nạp supabase-js"); return null; }
     client = window.supabase.createClient(URL, KEY); return client;
   }
+  // ── G3: map cột cũ → cột chuẩn. Ghi SONG SONG cả cột cũ (loai/cu) lẫn
+  //    cột chuẩn (ma_mon/cu_so/so_luong) để các màn đọc chưa sửa vẫn chạy;
+  //    cột cũ sẽ bỏ ở G4. Khóa upsert đổi sang (ma_bn,ngay,cu_so,ma_mon,
+  //    ma_che_do) — ma_che_do giữ phân biệt mã sữa thường/đặc trị cùng cữ. ──
+  var _MA_MON = { com_dv:"CPDV", chao_dv:"ChPDV", com_bl:"Cơm", chao_bl:"Cháo", sua_bt:"Sữa", sua_db:"Sữa", sonde:"Súp Sonde" };
+  var _CU_SO  = { "03:00":"01","06:00":"02","09:00":"03","11:00":"04","12:00":"05","15:00":"06","16:00":"07","17:00":"08","18:00":"09","21:00":"10","00:00":"11" };
+  var _MON_SUAT = { CPDV:1, ChPDV:1, "Cơm":1, "Cháo":1 }; // đơn vị 'suất' → so_luong=1; món 'ml' (Sữa/Súp Sonde) để trống (KDD nhập sau)
+  function _chuanHoa(x) {
+    var r = Object.assign({}, x);
+    if (r.ma_mon == null && r.loai != null && _MA_MON[r.loai] != null) r.ma_mon = _MA_MON[r.loai];
+    if (r.cu_so == null && r.cu != null && _CU_SO[r.cu] != null) r.cu_so = _CU_SO[r.cu];
+    if (r.so_luong == null && r.ma_mon != null && _MON_SUAT[r.ma_mon]) r.so_luong = _MON_SUAT[r.ma_mon];
+    return r;
+  }
   window.SUAT_DB = {
     configured: configured,
-    insert: function (rows) { var c = getClient(); if (!c) return Promise.resolve({ error: { message: "Chưa cấu hình Supabase" } }); var _t = new Date().toISOString().slice(0, 10); var _r = (rows || []).map(function (x) { return Object.assign({ ngay: x.ngay || _t }, x); }); return c.from(TABLE).upsert(_r, { onConflict: "ma_bn,ngay,cu,loai" }); },
+    insert: function (rows) { var c = getClient(); if (!c) return Promise.resolve({ error: { message: "Chưa cấu hình Supabase" } }); var _t = new Date().toISOString().slice(0, 10); var _r = (rows || []).map(function (x) { return _chuanHoa(Object.assign({ ngay: x.ngay || _t }, x)); }); return c.from(TABLE).upsert(_r, { onConflict: "ma_bn,ngay,cu_so,ma_mon,ma_che_do" }); },
     fetchChoXuLy: function () { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); return c.from(TABLE).select("*").eq("trang_thai", "khoa_gui").order("created_at", { ascending: true }); },
     updateTrangThai: function (ids, trangThai, lyDo) { var c = getClient(); if (!c || !ids || !ids.length) return Promise.resolve({ error: null }); var patch = { trang_thai: trangThai }; if (lyDo != null) patch.ly_do_tu_choi = lyDo; return c.from(TABLE).update(patch).in("id", ids); },
     fetchBenhNhan: function (loai) { var c = getClient(); if (!c) return Promise.resolve({ data: [], error: { message: "Chưa cấu hình" } }); var q = c.from("benh_nhan").select("*"); if (loai) q = q.eq("loai_bn", loai); return q.order("ma_bn", { ascending: true }); },
