@@ -36,6 +36,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anonKey: "sb_publishable_z4W6NoLBqDapelJ8C7Ov_g_u0SZlxwm" };
+// G4-khoa: map mã khoa → tên (dm_khoa) để dựng lại tên hiển thị từ ma_khoa
+// sau khi bỏ cột khoa (tên). Ổn định theo danh mục K01..K21.
+window._KHOA_TEN = {"K01":"KHOA NỘI TỔNG QUÁT 1","K02":"KHOA NỘI TỔNG QUÁT 2","K03":"KHOA SỐT XUẤT HUYẾT","K04":"KHOA THẬN - NỘI TIẾT","K05":"KHOA PHỎNG","K06":"KHOA NGOẠI THẬN - TIẾT NIỆU","K07":"KHOA NGOẠI TỔNG HỢP","K08":"KHOA NGOẠI CHỈNH HÌNH","K09":"KHOA NGOẠI THẦN KINH","K10":"KHOA HÔ HẤP","K11":"KHOA TIÊU HÓA","K12":"KHOA NHIỄM - THẦN KINH","K13":"KHOA TIM MẠCH","K14":"KHOA NGOẠI TIM MẠCH","K15":"KHOA RĂNG HÀM MẶT","K16":"KHOA TAI MŨI HỌNG","K17":"KHOA HỒI SỨC NHIỄM","K18":"KHOA TIM MẠCH CAN THIỆP","K19":"KHOA SƠ SINH","K20":"KHOA SƠ SINH 2","K21":"KHOA HỒI SỨC TÍCH CỰC"};
+window._khoaTen = function(maKhoa, tenCu){ return (maKhoa && window._KHOA_TEN[maKhoa]) || tenCu || ""; };
 (function () {
   "use strict";
   var CONFIG = window.SUPABASE_CONFIG || {};
@@ -65,6 +69,7 @@ window.SUPABASE_CONFIG = { url: "https://crqeixavuazkpczzahxe.supabase.co", anon
     // readers dùng _denorm để bù). Giữ khoa (tên) + ma_che_do. Cho phép drop
     // loai/cu/buoi ở G4 mà không vỡ INSERT.
     delete r.loai; delete r.cu; delete r.buoi;
+    delete r.khoa; // G4-khoa: chỉ gửi ma_khoa (cột khoa tên sắp bỏ)
     return r;
   }
   window.SUAT_DB = {
@@ -484,7 +489,7 @@ function DichVuTab({ onChuyenBenhLy }) {
       const mapped = res.data.map(r => {
         const cs = r.chinh_sua || {};
         const o = {
-          id: r.ma_bn, ten: r.ho_ten, ngaySinh: r.ngay_sinh, khoa: r.khoa,
+          id: r.ma_bn, ten: r.ho_ten, ngaySinh: r.ngay_sinh, khoa: window._khoaTen(r.ma_khoa, r.khoa), ma_khoa: r.ma_khoa,
           phong: r.phong, giuong: r.giuong, ghiChu: r.ghi_chu || "",
           status: r.trang_thai,
           chinhSua: cs.chinhSua || {}, chinhSua_chao: cs.chinhSua_chao || {},
@@ -563,7 +568,7 @@ function DichVuTab({ onChuyenBenhLy }) {
           const mon  = (b.chinhSua && b.chinhSua[bua]) || deXuatMac(nhom);
           const chao = (b.chinhSua_chao && b.chinhSua_chao[bua]) || {};
           return {
-            ma_bn: b.id, ho_ten: b.ten, khoa: b.khoa, phong: b.phong, giuong: b.giuong,
+            ma_bn: b.id, ho_ten: b.ten, ma_khoa: b.ma_khoa, phong: b.phong, giuong: b.giuong,
             ngay_sinh: b.ngaySinh, nhom_tuoi: nhom,
             cu: BUA_CU[bua], buoi: BUA_LABEL[bua],
             loai_food: mon === "Cháo" ? "chao" : "com",
@@ -900,7 +905,7 @@ function BenhLyTab({ incoming, onConsumed }) {
     window.SUAT_DB.fetchBenhNhan("BL").then(res => {
       if (res && !res.error && Array.isArray(res.data) && res.data.length) {
         let mapped = res.data.map(r => ({
-          id: r.ma_bn, name: r.ho_ten, dob: r.ngay_sinh, ward: r.khoa,
+          id: r.ma_bn, name: r.ho_ten, dob: r.ngay_sinh, ward: window._khoaTen(r.ma_khoa, r.khoa), ma_khoa: r.ma_khoa,
           room: (r.phong || r.giuong) ? ("P." + (r.phong || "") + "–G." + (r.giuong || "")) : "",
           status: r.trang_thai, ma: r.ma_benh_ly, nguon: r.nguon
         }));
@@ -1122,7 +1127,7 @@ function BenhLyTab({ incoming, onConsumed }) {
                         ];
                         const rows = [];
                         FOODS.forEach(f => { (f.st.cuSlots || []).forEach(s => { if (!s.time) return; rows.push({
-                          ma_bn: patient.id, ho_ten: patient.name, khoa: patient.ward,
+                          ma_bn: patient.id, ho_ten: patient.name, ma_khoa: patient.ma_khoa,
                           phong, giuong, ngay_sinh: patient.dob, nhom_tuoi: nhom,
                           cu: s.time, buoi: buoiOf(s.time),
                           loai_food: f.food, loai: f.loai, loai_suat: "BL", bo_phan: f.bp,
@@ -1308,7 +1313,7 @@ function GuiDinhDuongTab() {
       if (res && !res.error && Array.isArray(res.data)) {
         setDvDb(res.data.map(r => {
           const cs = r.chinh_sua || {};
-          return { id:r.ma_bn, ten:r.ho_ten, ngaySinh:r.ngay_sinh, khoa:r.khoa, phong:r.phong, giuong:r.giuong, ghiChu:r.ghi_chu||"", status:r.trang_thai, chinhSua:cs.chinhSua||{}, chinhSua_chao:cs.chinhSua_chao||{} };
+          return { id:r.ma_bn, ten:r.ho_ten, ngaySinh:r.ngay_sinh, khoa:window._khoaTen(r.ma_khoa, r.khoa), ma_khoa:r.ma_khoa, phong:r.phong, giuong:r.giuong, ghiChu:r.ghi_chu||"", status:r.trang_thai, chinhSua:cs.chinhSua||{}, chinhSua_chao:cs.chinhSua_chao||{} };
         }));
       }
     });
@@ -1337,7 +1342,7 @@ function GuiDinhDuongTab() {
           const mon  = (b.chinhSua && b.chinhSua[bua]) || deXuatMac(nhom);
           const chao = (b.chinhSua_chao && b.chinhSua_chao[bua]) || {};
           return {
-            ma_bn: b.id, ho_ten: b.ten, khoa: b.khoa, phong: b.phong, giuong: b.giuong,
+            ma_bn: b.id, ho_ten: b.ten, ma_khoa: b.ma_khoa, phong: b.phong, giuong: b.giuong,
             ngay_sinh: b.ngaySinh, nhom_tuoi: nhom,
             cu: BUA_CU[bua], buoi: BUA_LB[bua],
             loai_food: mon === "Cháo" ? "chao" : "com",
