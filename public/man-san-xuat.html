@@ -601,13 +601,14 @@ function applyDateLabel(){
 // ── G3-PR2: đảo ngược _chuanHoa — đọc cột chuẩn, fallback cột cũ (sẵn sàng G4) ──
 var _CU_GIO={"01":"03:00","02":"06:00","03":"09:00","04":"11:00","05":"12:00","06":"15:00","07":"16:00","08":"17:00","09":"18:00","10":"21:00","11":"00:00"};
 var _MON_LOAI={CPDV:"com_dv",ChPDV:"chao_dv","Cơm":"com_bl","Cháo":"chao_bl","Súp Sonde":"sonde"};
+var _KHOA_TEN={"K01":"KHOA NỘI TỔNG QUÁT 1","K02":"KHOA NỘI TỔNG QUÁT 2","K03":"KHOA SỐT XUẤT HUYẾT","K04":"KHOA THẬN - NỘI TIẾT","K05":"KHOA PHỎNG","K06":"KHOA NGOẠI THẬN - TIẾT NIỆU","K07":"KHOA NGOẠI TỔNG HỢP","K08":"KHOA NGOẠI CHỈNH HÌNH","K09":"KHOA NGOẠI THẦN KINH","K10":"KHOA HÔ HẤP","K11":"KHOA TIÊU HÓA","K12":"KHOA NHIỄM - THẦN KINH","K13":"KHOA TIM MẠCH","K14":"KHOA NGOẠI TIM MẠCH","K15":"KHOA RĂNG HÀM MẶT","K16":"KHOA TAI MŨI HỌNG","K17":"KHOA HỒI SỨC NHIỄM","K18":"KHOA TIM MẠCH CAN THIỆP","K19":"KHOA SƠ SINH","K20":"KHOA SƠ SINH 2","K21":"KHOA HỒI SỨC TÍCH CỰC"};
 function _denorm(r){
   if((r.loai==null||r.loai==="")&&r.ma_mon!=null){
     if(r.ma_mon==="Sữa"){var c=SUA_MAP[r.ma_che_do];r.loai=(c&&c.loai==="ĐB")?"sua_db":"sua_bt";}
     else if(_MON_LOAI[r.ma_mon])r.loai=_MON_LOAI[r.ma_mon];
   }
   if((r.cu==null||r.cu==="")&&r.cu_so!=null&&_CU_GIO[r.cu_so])r.cu=_CU_GIO[r.cu_so];
-  if((r.khoa==null||r.khoa==="")&&r.ma_khoa!=null)r.khoa=r.ma_khoa;
+  if((r.khoa==null||r.khoa==="")&&r.ma_khoa!=null)r.khoa=_KHOA_TEN[r.ma_khoa]||r.ma_khoa;
   return r;
 }
 function rebuildFromDB(rows){
